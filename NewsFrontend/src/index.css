@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body{
+  /* background-color: #E5E7EB; */
+}
+.nav-link {
+    position: relative;
+    padding-bottom: 5px; /* Space between text and underline */
+    z-index: 900;
+  }
+  .nav-link::after{
+    content:"";
+    position: absolute;
+    left:0;
+    bottom: 0;
+    width:0%;
+    height: 2px;
+    background-color: #F15922;
+    /* #b3a7a7 */
+    transition:width 0.3s ease ;
+  }
+
+  .nav-link:hover::after {
+    width: 100%; 
+  }
+  /* .noham{
+    position: fixed; 
+  top: 0; 
+  left: 0;
+  width: 100%;
+  z-index: 999; 
+  } */
+  @media (max-width: 1024px) {
+    .noham {
+      display: none;
+    }
+    /* .ham {
+      display: block;
+    } */
+    .ham {
+      display: block;
+      z-index: 1000; /* or higher if necessary */
+    }
+    .ham {
+      display: flex;
+      justify-content: space-between;
+      /* align-items: center; */
+      /* flex-wrap: nowrap; */
+    }
+  
+  }
+  
+  @media (min-width: 1025px) {
+    .ham {
+      display: none;
+    }
+  }
+  @media (max-width: 611px) {
+.navatahead{
+  /* font-size: 18px; */
+  width:180px;
+}
+.ptag{
+  font-size: 13px;
+}
+  }
+  @media (max-width: 430px) {
+    .navatahead{
+      /* font-size: 13px; */
+      width:180px;
+    }
+    .ptag{
+      font-size: 11px;
+    }
+      }
+  @media (min-width: 1130px) {
+.noham ul{
+  gap:28px  !important;
+}
+.noham{
+  /* gap:20px !important; */
+}
+
+  }
+  @media (min-width: 1024px) and (max-width: 1170px) {
+    .noham ul{
+      gap:13px  !important;
+    }
+    
+      }

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- <link rel="icon" type="image/svg+xml" href="/logo.png" /> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>News Site</title>
+    <style>
+      .logo-gradient {
+          background: linear-gradient(to right, #F05922 0%, #0066B3 70%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+      }
+      /* .nav-link::after {
+          content: '';
+          width: 0;
+          height: 2px;
+          background: #F05922;
+          transition: width 0.3s;
+      }
+      .nav-link:hover::after {
+          width: 100%;
+      } */
+      
+        .nav-link-hover {
+          position: relative;
+          padding: 0.5rem;
+          transition: all 0.3s ease;
+        }
+        
+        .nav-link-hover::after {
+          content: '';
+          position: absolute;
+          width: 0;
+          height: 2px;
+          bottom: 0;
+          left: 50%;
+          background-color: #0066B3;
+          transition: all 0.3s ease;
+          transform: translateX(-50%);
+        }
+        
+        .nav-link-hover:hover {
+          color: #0066B3;
+        }
+        
+        .nav-link-hover:hover::after {
+          width: 100%;
+        }
+        
+        .nav-button {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          border-radius: 0.5rem;
+          font-size: 0.875rem;
+          transition: all 0.3s ease;
+          transform-origin: center;
+        }
+        
+        .nav-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-button-mobile {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          border-radius: 0.5rem;
+          font-size: 0.875rem;
+          transition: all 0.3s ease;
+        }
+        
+        .mobile-nav-link {
+          display: block;
+          padding: 0.5rem;
+          color: #6D6E70;
+          transition: all 0.3s ease;
+        }
+        
+        .mobile-nav-link:hover {
+          color: #0066B3;
+          transform: translateX(4px);
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-in-out;
+        }
+      
+  </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
