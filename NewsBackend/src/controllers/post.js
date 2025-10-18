@@ -487,30 +487,36 @@ const getPersonalizedRecommendations = async (req, res) => {
     const usedPostIds = new Set(); // To avoid duplicates
 
     // Get posts from each category, prioritizing most viewed categories
-    for (const categoryId of sortedCategories) {
-      if (recommendedPosts.length >= 10) break; // Limit to 10 posts total
+   for (const categoryId of sortedCategories) {
+  if (recommendedPosts.length >= 10) break; // Limit to 10 posts total
 
-      try {
-        const categoryPosts = await Post.find({ 
-          category: categoryId,
-          _id: { $nin: Array.from(usedPostIds) } // Exclude already selected posts
-        })
-        .populate('category', 'name slug')
-        .sort({ createdAt: -1 }) // Get latest posts first
-        .limit(10 - recommendedPosts.length) // Fill remaining slots
-        .select('title slug category content image createdAt viewCount');
+  try {
+    const validCategoryId = categoryId?._id || categoryId;
 
-        // Add posts to recommendations and track used IDs
-        for (const post of categoryPosts) {
-          if (recommendedPosts.length >= 10) break;
-          recommendedPosts.push(post);
-          usedPostIds.add(post._id.toString());
-        }
-      } catch (error) {
-        console.error(`Error fetching posts for category ${categoryId}:`, error);
-        // Continue with next category if one fails
-      }
+    if (!mongoose.Types.ObjectId.isValid(validCategoryId)) {
+      console.warn("Skipping invalid category ID:", categoryId);
+      continue;
     }
+
+    const categoryPosts = await Post.find({ 
+      category: validCategoryId,
+      _id: { $nin: Array.from(usedPostIds) }
+    })
+    .populate('category', 'name slug')
+    .sort({ createdAt: -1 })
+    .limit(10 - recommendedPosts.length)
+    .select('title slug category content image createdAt viewCount');
+
+    for (const post of categoryPosts) {
+      if (recommendedPosts.length >= 10) break;
+      recommendedPosts.push(post);
+      usedPostIds.add(post._id.toString());
+    }
+  } catch (error) {
+    console.error(`Error fetching posts for category ${JSON.stringify(categoryId)}:`, error);
+  }
+}
+
 
     // If we don't have enough posts from viewed categories, fill with recent posts
     if (recommendedPosts.length < 10) {

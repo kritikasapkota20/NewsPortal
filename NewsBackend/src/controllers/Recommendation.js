@@ -16,7 +16,7 @@ export const getCategoryBasedRecommendations = async (req, res) => {
     let recommendedPosts = [];
 
     for (const categoryId of sortedCategories) {
-      const posts = await Post.find({ category: categoryId }).limit(5);
+      const posts = await Post.find({ category: mongoose.Types.ObjectId(categoryId) }).limit(5);
       recommendedPosts.push(...posts);
       if (recommendedPosts.length >= 10) break;
     }

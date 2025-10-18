@@ -4,6 +4,10 @@ import { FaFacebook,FaTimes } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ToastContainer, toast } from 'react-toastify';
 import axios from "axios";  
+import axiosInstance from "../api/axios";
+
+axiosInstance.get("/api/posts");
+
 
 const AuthForm = () => {
 const [isSignup,setIsSignup]=useState(false);

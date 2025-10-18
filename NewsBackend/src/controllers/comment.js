@@ -10,16 +10,19 @@ const createComment = async (req, res) => {
       return res.status(400).json({ message: "Comment text is required" });
     }
 
+    // ✅ Fix 1: use `req.user.userId` (correct field from JWT)
     const newComment = await Comment.create({
-      articleId: postId, // still store under `articleId` in DB if that's your schema
-      userId: req.user.id, // from JWT
+      articleId: postId,
+      userId: req.user.userId,
       text,
     });
 
-    res.status(201).json(
-      await newComment.populate("userId", "name") // return with user name for frontend display
-    );
+    // ✅ Fix 2: populate `username` (not name)
+    const populatedComment = await newComment.populate("userId", "username");
+
+    res.status(201).json(populatedComment);
   } catch (error) {
+    console.error("Error creating comment:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -29,12 +32,14 @@ const getCommentsByArticle = async (req, res) => {
   try {
     const { postId } = req.params;
 
+    // ✅ Fix 3: also populate `username` (not name)
     const comments = await Comment.find({ articleId: postId })
-      .populate("userId", "name")
+      .populate("userId", "username")
       .sort({ createdAt: -1 });
 
     res.status(200).json(comments);
   } catch (error) {
+    console.error("Error fetching comments:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -45,8 +50,9 @@ const deleteComment = async (req, res) => {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
+    // ✅ Fix 4: use `req.user.userId` for consistency
     if (
-      comment.userId.toString() !== req.user.id &&
+      comment.userId.toString() !== req.user.userId &&
       req.user.role !== "admin"
     ) {
       return res.status(403).json({ message: "Not authorized" });
@@ -55,6 +61,7 @@ const deleteComment = async (req, res) => {
     await comment.deleteOne();
     res.json({ message: "Comment deleted successfully" });
   } catch (error) {
+    console.error("Error deleting comment:", error);
     res.status(500).json({ message: error.message });
   }
 };

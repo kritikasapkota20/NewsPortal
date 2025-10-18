@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import UseDate from './UseDate';
 import { BsClock } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
+import { FaUserCircle } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -17,37 +18,40 @@ const Samachardetails = ({data}) => {
   const [comment, setComment] = useState("");
   // const [isAuthenticated,setIsAuthenticated]=useState(false);
   const navigate = useNavigate();
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast.info("Please login to comment");
-      navigate("/Authform"); // redirect if not logged in
-      return;
+  try {
+    const { data: newComment } = await axios.post(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
+      { text: comment },
+      { withCredentials: true }
+    );
+
+    setComments((prev) => [newComment, ...prev]);
+    setComment("");
+  } catch (error) {
+    console.error("Error posting comment:", error);
+
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      toast.error("Please login to post a comment.");
+
+      // ⏳ Give toast a moment to appear before navigating
+      setTimeout(() => navigate("/AuthForm"), 1500);
+    } else {
+      toast.error("Failed to post comment. Please try again later.");
     }
+  }
+};
 
-    try {
-      const { data } = await axios.post(
-        `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
-        { text: comment },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
 
-      setComments((prev) => [data, ...prev]);
-      setComment("");
-    } catch (error) {
-      console.error("Error posting comment:", error);
-    }
-  };
+
   // for fetching comments
   useEffect(() => {
     const fetchComments = async () => {
       try {
         const { data } = await axios.get(
-          `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`
+          `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,  { withCredentials: true }
         );
         setComments(data);
       } catch (err) {
@@ -160,58 +164,75 @@ const Samachardetails = ({data}) => {
             ))}
           </div>
 
-          {/* 🗨️ Comment Section */}
-   {/* 🗨️ Comment Section */}
+    {/* 🗨️ Comment Section */}
 <motion.div
-  className="bg-white shadow-2xl w-full p-4 border-t border-[#cecccc] font-semibold mt-8"
-  whileHover={{ scale: 1.02 }}
+  className="bg-white shadow-md w-full p-6 border border-gray-200 rounded-2xl mt-10"
+  whileHover={{ scale: 1.01 }}
 >
-  <p className="mb-3 text-[16px]">Leave a comment **</p>
+  <h3 className="text-2xl font-bold mb-4 text-gray-800">Comments</h3>
 
-  {/* 🗨️ Comment Count or Empty State */}
-  <p className="text-[#4c4a4a] mb-4">
+  {/* 🧾 Comment Count or Empty State */}
+  <p className="text-gray-600 mb-6 border-b border-gray-300 pb-3">
     {comments.length > 0
       ? `${comments.length} ${comments.length === 1 ? "Comment" : "Comments"}`
-      : "No comments yet. Be the first!"}
+      : "No comments yet — be the first to share your thoughts!"}
   </p>
 
-  {/* 🗨️ Show existing comments */}
-  <div className="mb-4">
-    {comments.map((c) => (
-      <div key={c._id} className="border-b border-gray-300 py-2 mb-2">
-        <p className="font-semibold">{c.userId?.name || "Anonymous"}</p>
-        <p>{c.text}</p>
-        <span className="text-xs text-gray-500">
-          {new Date(c.createdAt).toLocaleString()}
-        </span>
-      </div>
-    ))}
-  </div>
-
-  {/* 🗨️ Comment Form */}
-  <form onSubmit={handleSubmit}>
-    <input
+  {/* 📝 Comment Form */}
+  <form onSubmit={handleSubmit} className="mb-8">
+    <textarea
       required
-      type="text"
-      placeholder="Add a comment..."
+      rows="3"
+      placeholder="Write your comment..."
       value={comment}
       onChange={(e) => setComment(e.target.value)}
-      className="w-full h-16 p-2 mb-3 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary"
+      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none text-gray-700"
     />
 
-    <div className="flex justify-end">
+    <div className="flex justify-end mt-3">
       <button
-        className="bg-[#f26a39] text-white py-2 px-4 hover:bg-[#F05922] transition"
+        className="bg-[#F05922] text-white py-2 px-5 rounded-lg hover:bg-[#d94f1f] transition font-semibold shadow-md"
         type="submit"
       >
-        Add Comment
+        Post Comment
       </button>
     </div>
   </form>
-</motion.div>
 
+  {/* 💬 Show existing comments */}
+  <div className="space-y-5">
+    {comments.map((c) => (
+      <motion.div
+        key={c._id}
+        className="border border-gray-200 bg-gray-50 rounded-xl p-4 hover:shadow-sm transition"
+        whileHover={{ scale: 1.01 }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <div className='flex mb-1 gap-2 items-center'>
+            <FaUserCircle className='text-3xl text-gray-500' />
 
+          <p className="font-semibold text-gray-800">
+            {c.userId?.username || "Anonymous"}
+          </p>
+          </div>
+          <span className="text-xs text-gray-500">
+            {new Date(c.createdAt).toLocaleString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+})}
+
+          </span>
         </div>
+        <p className="text-gray-700 leading-relaxed ">{c.text}</p>
+      </motion.div>
+    ))}
+  </div>
+</motion.div>
+</div>
 
         {/* Sidebar Related News */}
         <div className="lg:w-5/12 w-full max-h-fit py-2 px-4">

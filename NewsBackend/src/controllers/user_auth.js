@@ -160,32 +160,62 @@ export const verifyEmail = async (req, res) => {
 };
 
 export const loginUser = async (req, res) => {
-    const { email, password } = req.body;
-    try {
-        const user = await User.findOne({ email });
-        if (!user)
-            return res.status(400).json({ message: "Invalid Email or Password" });
-        if (!user.isVerified) {
-            return res.status(403).json({ message: "Please verify your email before logging in." });
-        }
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword)
-            return res.status(400).json({ message: "Invalid Email or Password" })
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
-        res.cookie("token", token, {
-            httpOnly: true,
-            // secure:process.env.NODE_ENV==="production",
-            // sameSite:"strict",
-            // maxAge:24*60*60*1000,
-        });
-        res.status(200).json({ 
-            message: "User logged in successfully!" });
-    } catch (error) {
-        res.status(500).json({ message: "Internal Server Error" });
-        console.log(error);
+  const { email, password } = req.body;
 
-    }
-}
+  try {
+    // 🧩 1. Find user
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(400).json({ message: "Invalid Email or Password" });
+
+    if (!user.isVerified)
+      return res.status(403).json({ message: "Please verify your email before logging in." });
+
+    // 🔐 2. Verify password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword)
+      return res.status(400).json({ message: "Invalid Email or Password" });
+
+    // 🪄 3. Create tokens
+    const accessToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES || "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: process.env.JWT_REFRESH_EXPIRES || "7d" }
+    );
+
+    // 💾 4. Save refresh token to DB
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // 🍪 5. Send tokens as HttpOnly cookies
+    res.cookie("token", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // ✅ 6. Send response
+    res.status(200).json({ message: "User logged in successfully!" });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 export const logoutUser=(req,res)=>{
     res.clearCookie("token",{
         httpOnly: true,
