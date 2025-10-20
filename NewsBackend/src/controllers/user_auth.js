@@ -121,7 +121,7 @@ export const verifyEmail = async (req, res) => {
     if (payload.type === "verify-existing") {
       const user = await User.findById(payload.userId);
       if (!user) return res.status(400).json({ message: "Account not found" });
-      if (user.isVerified) return res.status(200).json({ message: "Email already verified", email: user.email });
+      // if (user.isVerified) return res.status(200).json({ message: "Email already verified", email: user.email });
       user.isVerified = true;
       // Clear any legacy verification fields if present
       user.verificationToken = undefined;
@@ -159,63 +159,88 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
+// Optional helper to ensure required env vars exist at runtime.
+const ensureJwtEnv = () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not defined in environment variables");
+  }
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error("JWT_REFRESH_SECRET is not defined in environment variables");
+  }
+};
+
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 🧩 1. Find user
+    // Ensure secrets exist
+    ensureJwtEnv();
+
+    // 1. Find user
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(400).json({ message: "Invalid Email or Password" });
+    if (!user) return res.status(400).json({ message: "Invalid Email or Password" });
 
     if (!user.isVerified)
       return res.status(403).json({ message: "Please verify your email before logging in." });
 
-    // 🔐 2. Verify password
+    // 2. Verify password
     const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword)
-      return res.status(400).json({ message: "Invalid Email or Password" });
+    if (!validPassword) return res.status(400).json({ message: "Invalid Email or Password" });
 
-    // 🪄 3. Create tokens
+    // Determine token expirations (use env if present, otherwise defaults)
+    const accessTokenExpires = process.env.JWT_EXPIRES || "15m"; // e.g. "15m" or "1h"
+    const refreshTokenExpires = process.env.JWT_REFRESH_EXPIRES || "7d"; // e.g. "7d"
+
+    // 3. Create tokens
     const accessToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES || "15m" }
+      { expiresIn: accessTokenExpires }
     );
 
     const refreshToken = jwt.sign(
       { userId: user._id },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES || "7d" }
+      { expiresIn: refreshTokenExpires }
     );
 
-    // 💾 4. Save refresh token to DB
+    // 4. Save refresh token to DB
     user.refreshToken = refreshToken;
     await user.save();
 
-    // 🍪 5. Send tokens as HttpOnly cookies
+    // 5. Send tokens as HttpOnly cookies
+    // Cookie maxAge is in milliseconds. Adjust to match your token lifetime if needed.
+    // Here we keep consistent defaults: 15 minutes for access, 7 days for refresh.
+    const accessMaxAgeMs = 15 * 60 * 1000; // 15 minutes
+    const refreshMaxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+
     res.cookie("token", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: accessMaxAgeMs,
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: refreshMaxAgeMs,
     });
 
-    // ✅ 6. Send response
+    // 6. Send response
     res.status(200).json({ message: "User logged in successfully!" });
 
   } catch (error) {
-    console.error(error);
+    console.error("loginUser error:", error);
+    // If secrets missing, return 500 with helpful message (but don't leak secret values)
+    if (error.message && error.message.includes("JWT_SECRET")) {
+      return res.status(500).json({ message: "Server misconfiguration: token secret missing" });
+    }
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 export const logoutUser=(req,res)=>{
     res.clearCookie("token",{
         httpOnly: true,
@@ -247,5 +272,5 @@ export const getMe = async (req, res) => {
 };
 
 
-export default { registerUser, loginUser,logoutUser };
+export default { registerUser, loginUser,logoutUser,getMe };
 

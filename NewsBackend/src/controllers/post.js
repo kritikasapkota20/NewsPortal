@@ -1,6 +1,7 @@
 import Post from "../models/post.js";
 import slugify from "slugify"; 
 import Category from "../models/categorymodel.js"; 
+import mongoose from "mongoose";
 
 
 const createPost = async (req, res) => {

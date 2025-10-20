@@ -141,7 +141,7 @@ console.log('Error parsing auth_verify data from storage event', error);
           </button>
         </form>
         <div className="text-center my-3">OR</div>
-        <button className="w-full flex items-center gap-2 p-2 bg-red-500 hover:bg-[#b92b2b] text-white rounded" onClick={() => window.location.href = `${import.meta.env.VITE_SERVERAP || 'http://localhost:5000'}/auth/google`}>
+        <button className="w-full flex items-center gap-2 p-2 bg-red-500 hover:bg-[#b92b2b] text-white rounded" onClick={() => window.location.href = `${import.meta.env.VITE_SERVERAP || 'http://localhost:5000'}/user/auth/google`}>
           <FcGoogle size={20} /> Sign in with Google
         </button>
         <button className="w-full flex items-center gap-2 mt-2 p-2 bg-blue-800 hover:bg-[#2828ac] text-white rounded">
