@@ -144,7 +144,7 @@ export const verifyEmail = async (req, res) => {
           await existing.save();
           return res.status(200).json({ message: "Email verified successfully", email: existing.email });
         }
-        return res.status(200).json({ message: "Email already verified", email: existing.email });
+        // return res.status(200).json({ message: "Email already verified", email: existing.email });
       }
 
       const newUser = new User({ username, email, password, isVerified: true });
@@ -173,46 +173,32 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Ensure secrets exist
     ensureJwtEnv();
 
-    // 1. Find user
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid Email or Password" });
 
     if (!user.isVerified)
       return res.status(403).json({ message: "Please verify your email before logging in." });
 
-    // 2. Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ message: "Invalid Email or Password" });
 
-    // Determine token expirations (use env if present, otherwise defaults)
-    const accessTokenExpires = process.env.JWT_EXPIRES || "15m"; // e.g. "15m" or "1h"
-    const refreshTokenExpires = process.env.JWT_REFRESH_EXPIRES || "7d"; // e.g. "7d"
+    const accessTokenExpires = process.env.JWT_EXPIRES || "15m";
+    const refreshTokenExpires = process.env.JWT_REFRESH_EXPIRES || "7d";
 
-    // 3. Create tokens
-    const accessToken = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: accessTokenExpires }
-    );
+    const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: accessTokenExpires });
+    const refreshToken = jwt.sign({ userId: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: refreshTokenExpires });
 
-    const refreshToken = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: refreshTokenExpires }
-    );
+    // ✅ Update lastLogin here
+    user.lastLogin = new Date();
 
-    // 4. Save refresh token to DB
+    // Save refresh token and lastLogin
     user.refreshToken = refreshToken;
     await user.save();
 
-    // 5. Send tokens as HttpOnly cookies
-    // Cookie maxAge is in milliseconds. Adjust to match your token lifetime if needed.
-    // Here we keep consistent defaults: 15 minutes for access, 7 days for refresh.
-    const accessMaxAgeMs = 15 * 60 * 1000; // 15 minutes
-    const refreshMaxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const accessMaxAgeMs = 15 * 60 * 1000;
+    const refreshMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
 
     res.cookie("token", accessToken, {
       httpOnly: true,
@@ -228,18 +214,17 @@ export const loginUser = async (req, res) => {
       maxAge: refreshMaxAgeMs,
     });
 
-    // 6. Send response
     res.status(200).json({ message: "User logged in successfully!" });
 
   } catch (error) {
     console.error("loginUser error:", error);
-    // If secrets missing, return 500 with helpful message (but don't leak secret values)
     if (error.message && error.message.includes("JWT_SECRET")) {
       return res.status(500).json({ message: "Server misconfiguration: token secret missing" });
     }
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 export const logoutUser=(req,res)=>{
     res.clearCookie("token",{
@@ -253,7 +238,7 @@ export const logoutUser=(req,res)=>{
     });
 }
 
-export const getMe = async (req, res) => {
+export const getUser = async (req, res) => {
   try {
     const token = req.cookies?.token;
     if (!token) return res.status(401).json({ authenticated: false });
@@ -271,6 +256,69 @@ export const getMe = async (req, res) => {
   }
 };
 
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("username email role isVerified createdAt");
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Error fetching users" });
+  }
+};
+export const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-export default { registerUser, loginUser,logoutUser,getMe };
+    const deletedUser = await User.findByIdAndDelete(id);
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ message: "Error deleting user" });
+  }
+};
+export const updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // ✅ Only allow valid roles
+    const validRoles = ["User", "Editor",];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { role },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User role updated successfully",
+      user: {
+        id: updatedUser._id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    res.status(500).json({ message: "Error updating user role" });
+  }
+};
+
+
+
+
+
+export default { registerUser, loginUser,logoutUser,getUser,getAllUsers };
 

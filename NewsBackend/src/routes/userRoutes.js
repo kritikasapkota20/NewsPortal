@@ -6,9 +6,11 @@ import {
   loginUser,
   logoutUser,
   verifyEmail,
-  getMe
+  getUser,
+  getAllUsers,deleteUser,updateUserRole
 } from "../controllers/user_auth.js";
-import User from "../models/User.js"; // ✅ needed for refresh route
+import User from "../models/User.js"; 
+import { protectAdmin } from "../middlewares/admin_auth.js";
 
 const router = express.Router();
 
@@ -17,7 +19,11 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.get("/verify/:token", verifyEmail);
 router.post("/logout", logoutUser);
-router.get("/me", getMe);
+router.get("/getUser", getUser);
+router.get("/getUsers", protectAdmin, getAllUsers);
+router.delete("/delete/:id", protectAdmin, deleteUser);
+router.put("/updateRole/:id", protectAdmin, updateUserRole);
+
 
 // 🔁 REFRESH TOKEN ENDPOINT (new)
 router.post("/refresh", async (req, res) => {

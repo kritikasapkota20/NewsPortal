@@ -171,7 +171,7 @@ export const verifyEmail = async (req, res) => {
     if (payload.type === "verify-existing") {
       const user = await Editor.findById(payload.userId);
       if (!user) return res.status(400).json({ message: "Account not found" });
-      if (user.isVerified) return res.status(200).json({ message: "Email already verified", email: user.email });
+    //   if (user.isVerified) return res.status(200).json({ message: "Email already verified", email: user.email });
       user.isVerified = true;
       // Clear any legacy verification fields if present
       user.verificationToken = undefined;
@@ -194,7 +194,7 @@ export const verifyEmail = async (req, res) => {
           await existing.save();
           return res.status(200).json({ message: "Email verified successfully", email: existing.email });
         }
-        return res.status(200).json({ message: "Email already verified", email: existing.email });
+        // return res.status(200).json({ message: "Email already verified", email: existing.email });
       }
 
       const newUser = new Editor({ username, email, password, isVerified: true });
