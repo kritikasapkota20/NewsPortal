@@ -546,8 +546,50 @@ const getPersonalizedRecommendations = async (req, res) => {
   }
 };
 
+// Search posts by title, content, or category
+const searchPosts = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const limit = parseInt(req.query.limit) || 10;
+    
+    if (!q || q.trim().length === 0) {
+      return res.status(200).json({
+        success: true,
+        results: [],
+        total: 0
+      });
+    }
+
+    const searchRegex = new RegExp(q.trim(), 'i');
+    
+    const posts = await Post.find({
+      $or: [
+        { title: searchRegex },
+        { content: { $regex: searchRegex } },
+        { subCategory: searchRegex }
+      ]
+    })
+    .populate('category', 'name slug')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .select('title slug content image createdAt category subCategory');
+
+    res.status(200).json({
+      success: true,
+      results: posts,
+      total: posts.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
 export {createPost,getPosts,deletePost,editPost, 
   getHeadNews,getMainNews,getPostsByCategory,getPost,
   incrementPostView, getRecommendedPosts, getPersonalizedRecommendations,
-  getPostsPaginated, getGroupedPostsForAdmin
+  getPostsPaginated, getGroupedPostsForAdmin, searchPosts
 };

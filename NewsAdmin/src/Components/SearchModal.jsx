@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaTimes, FaNewspaper, FaFolder } from 'react-icons/fa';
+import { FaSearch, FaTimes, FaNewspaper, FaUser, FaFolder } from 'react-icons/fa';
 import axios from 'axios';
 
 const SearchModal = ({ isOpen, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({
     posts: [],
-    categories: [],
-    recommended: []
+    users: [],
+    categories: []
   });
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -41,7 +41,7 @@ const SearchModal = ({ isOpen, onClose }) => {
       if (searchQuery.trim().length >= 2) {
         performSearch(searchQuery);
       } else {
-        setSearchResults({ posts: [], categories: [], recommended: [] });
+        setSearchResults({ posts: [], users: [], categories: [] });
         setShowResults(false);
       }
     }, 300);
@@ -54,10 +54,10 @@ const SearchModal = ({ isOpen, onClose }) => {
     setShowResults(true);
 
     try {
-      const [postsRes, categoriesRes, recommendedRes] = await Promise.allSettled([
-        axios.get(`${import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'}/post/search?q=${encodeURIComponent(query)}&limit=10`),
-        axios.get(`${import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'}/categories`),
-        axios.get(`${import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'}/post/recommendedPosts`)
+      const [postsRes, categoriesRes, usersRes] = await Promise.allSettled([
+        axios.get(`http://localhost:5000/api/post/search?q=${encodeURIComponent(query)}&limit=5`),
+        axios.get(`http://localhost:5000/api/categories`),
+        axios.get(`http://localhost:5000/api/user/getUsers`, { withCredentials: true })
       ]);
 
       const posts = postsRes.status === 'fulfilled' ? postsRes.value.data.results || [] : [];
@@ -67,50 +67,45 @@ const SearchModal = ({ isOpen, onClose }) => {
       
       const categories = allCategories.filter(cat => 
         cat.name.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 6);
+      );
       
-      // Use recommended posts as trending/results
-      const recommended = recommendedRes.status === 'fulfilled' 
-        ? recommendedRes.value.data.posts || [] 
-        : [];
+      const allUsers = usersRes.status === 'fulfilled' ? usersRes.value.data || [] : [];
+      const users = allUsers.filter(user => 
+        user.username.toLowerCase().includes(query.toLowerCase()) ||
+        user.email.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 5);
 
-      setSearchResults({ posts, categories, recommended });
+      setSearchResults({ posts, users, categories });
     } catch (error) {
       console.error('Search error:', error);
-      setSearchResults({ posts: [], categories: [], recommended: [] });
+      setSearchResults({ posts: [], users: [], categories: [] });
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handleResultClick = (post) => {
-    if (!post || !post.category || !post._id) return;
-    
+  const handleResultClick = (resultType, id, category) => {
     onClose();
     setSearchQuery('');
     
-    const categorySlug = post.category.slug?.toLowerCase() || '';
-    const postSlug = post.slug || '';
-    navigate(`/${categorySlug}/${post._id}/${postSlug}`);
-  };
-
-  const handleCategoryClick = (category) => {
-    onClose();
-    setSearchQuery('');
-    
-    const slug = category.slug?.toLowerCase() || category.name?.toLowerCase() || '';
-    const specialRoutes = ["entertainment", "health", "sports"];
-    
-    if (specialRoutes.includes(slug)) {
-      navigate(`/category/${slug.charAt(0).toUpperCase() + slug.slice(1)}`);
-    } else {
-      navigate(`/category/${slug}`);
+    switch (resultType) {
+      case 'post':
+        navigate(`/Admin/edit-post/${category}/${id}`);
+        break;
+      case 'user':
+        navigate(`/Admin/users`);
+        break;
+      case 'category':
+        navigate(`/Admin/manage-categories`);
+        break;
+      default:
+        break;
     }
   };
 
   const handleClose = () => {
     setSearchQuery('');
-    setSearchResults({ posts: [], categories: [], recommended: [] });
+    setSearchResults({ posts: [], users: [], categories: [] });
     setShowResults(false);
     onClose();
   };
@@ -121,13 +116,13 @@ const SearchModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const totalResults = searchResults.posts.length + searchResults.categories.length;
+  const totalResults = searchResults.posts.length + searchResults.users.length + searchResults.categories.length;
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-20" onClick={handleClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
@@ -135,11 +130,11 @@ const SearchModal = ({ isOpen, onClose }) => {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search news, articles, categories..."
+                placeholder="Search posts, users, categories..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066B3] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0065B3] focus:border-transparent"
               />
             </div>
             <button
@@ -155,11 +150,11 @@ const SearchModal = ({ isOpen, onClose }) => {
           <div className="max-h-[500px] overflow-y-auto">
             {isSearching ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0066B3]"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0065B3]"></div>
               </div>
             ) : totalResults > 0 ? (
               <div className="p-4">
-                {/* Categories Results */}
+                {/* Categories First */}
                 {searchResults.categories.length > 0 && (
                   <div className="mb-6">
                     <div className="flex items-center gap-2 mb-3 text-gray-600">
@@ -170,10 +165,10 @@ const SearchModal = ({ isOpen, onClose }) => {
                       {searchResults.categories.map((category) => (
                         <div
                           key={category._id}
-                          onClick={() => handleCategoryClick(category)}
-                          className="p-3 border border-gray-200 rounded-lg hover:border-[#0066B3] hover:bg-blue-50 cursor-pointer transition-colors group"
+                          onClick={() => handleResultClick('category', category._id)}
+                          className="p-3 border border-gray-200 rounded-lg hover:border-[#0065B3] hover:bg-blue-50 cursor-pointer transition-colors group"
                         >
-                          <p className="font-medium text-gray-900 group-hover:text-[#0066B3] transition-colors text-sm">
+                          <p className="font-medium text-gray-900 group-hover:text-[#0065B3] transition-colors">
                             {category.name}
                           </p>
                         </div>
@@ -182,34 +177,63 @@ const SearchModal = ({ isOpen, onClose }) => {
                   </div>
                 )}
 
-                {/* Posts Results */}
+                {/* Posts Second */}
                 {searchResults.posts.length > 0 && (
                   <div className="mb-6">
                     <div className="flex items-center gap-2 mb-3 text-gray-600">
                       <FaNewspaper />
-                      <h3 className="font-semibold">Articles ({searchResults.posts.length})</h3>
+                      <h3 className="font-semibold">Posts ({searchResults.posts.length})</h3>
                     </div>
                     <div className="space-y-2">
                       {searchResults.posts.map((post) => (
                         <div
                           key={post._id}
-                          onClick={() => handleResultClick(post)}
+                          onClick={() => handleResultClick('post', post._id, post.category?.name)}
                           className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors group"
                         >
                           {post.image && (
                             <img
-                              src={`${import.meta.env.VITE_SERVERAPIIMG || 'http://localhost:5000'}${post.image}`}
+                              src={`http://localhost:5000${post.image}`}
                               alt={post.title}
-                              className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                              className="w-16 h-16 object-cover rounded-lg"
                             />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 group-hover:text-[#0066B3] transition-colors line-clamp-2 mb-1">
+                            <p className="font-medium text-gray-900 group-hover:text-[#0065B3] transition-colors truncate">
                               {post.title}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {post.category?.name || 'Uncategorized'} • {new Date(post.createdAt).toLocaleDateString()}
+                            <p className="text-sm text-gray-500">
+                              {post.category?.name || 'Uncategorized'}
                             </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Users Last */}
+                {searchResults.users.length > 0 && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3 text-gray-600">
+                      <FaUser />
+                      <h3 className="font-semibold">Users ({searchResults.users.length})</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {searchResults.users.map((user) => (
+                        <div
+                          key={user._id}
+                          onClick={() => handleResultClick('user', user._id)}
+                          className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors group"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-[#0065B3] flex items-center justify-center text-white font-semibold">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 group-hover:text-[#0065B3] transition-colors">
+                              {user.username}
+                            </p>
+                            <p className="text-sm text-gray-500 truncate">{user.email}</p>
                           </div>
                         </div>
                       ))}
@@ -232,7 +256,7 @@ const SearchModal = ({ isOpen, onClose }) => {
             <p className="text-gray-500 text-center">
               {searchQuery.length > 0 
                 ? 'Type at least 2 characters to search' 
-                : 'Start typing to search news and articles...'}
+                : 'Start typing to search...'}
             </p>
           </div>
         )}

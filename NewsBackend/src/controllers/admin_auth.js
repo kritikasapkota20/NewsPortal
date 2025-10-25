@@ -160,7 +160,7 @@ export const loginAdmin = async (req, res) => {
         if (!validPassword)
             return res.status(400).json({ message: "Invalid Email or Password" })
         const token = jwt.sign({ adminId: admin._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES });
-        res.cookie("token", token, {
+        res.cookie("adminToken", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
@@ -174,8 +174,8 @@ export const loginAdmin = async (req, res) => {
 };
 
 export const logoutAdmin = (req, res) => {
-    res.clearCookie("token", {
-        httpOnly: true,secure: true, sameSite: "Strict"
+    res.clearCookie("adminToken", {
+        httpOnly: true,secure: false, sameSite: "lax"
     });
     res.status(200).json({
         success: true,

@@ -5,8 +5,12 @@ import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import SearchModal from "./SearchModal";
+
 const Navbar = () => {
   const navigate = useNavigate();
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  
   const logoutAdmin = async () => {
     try {
       const response = await axios.post("http://localhost:5000/api/admin/logout", {}, { withCredentials: true });
@@ -28,11 +32,16 @@ const Navbar = () => {
         <div className="relative">
           <input
             type="text"
-            placeholder="Search anything..."
-            className="w-full px-5 py-3 rounded-xl bg-gray-100 border border-gray-200 focus:outline-none focus:ring-primary focus:ring-2 focus:border-gray-300 transition-all"
+            placeholder="Search posts, users, categories..."
+            onClick={() => setIsSearchModalOpen(true)}
+            className="w-full px-5 py-3 rounded-xl bg-gray-100 border border-gray-200 focus:outline-none focus:ring-primary focus:ring-2 focus:border-gray-300 transition-all cursor-pointer"
+            readOnly
           />
-          <button className="absolute right-4 top-1/2 transform -translate-y-1/2">
-            <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800 transition-all">
+          <button 
+            onClick={() => setIsSearchModalOpen(true)}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2"
+          >
+            <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800 transition-all cursor-pointer">
               <FaSearch className="text-lg" />
             </div>
           </button>
@@ -74,6 +83,12 @@ const Navbar = () => {
         </div>
         <ToastContainer />
       </div>
+      
+      {/* Search Modal */}
+      <SearchModal 
+        isOpen={isSearchModalOpen} 
+        onClose={() => setIsSearchModalOpen(false)} 
+      />
     </nav>
   );
 };

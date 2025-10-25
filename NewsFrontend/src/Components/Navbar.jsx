@@ -13,11 +13,10 @@ import { Link } from 'react-router-dom';
 import UseDate from './UseDate';
 
 const Navbar = () => {
-  const [searchModal, setSearchModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const { nepaliDate, englishDate, currentTime } = UseDate();
   const [weather, setWeather] = useState({ temperature: 'Loading...', city: 'kathmandu' });
-  const [showSearchBox, setShowSearchBox] = useState(false);
   const [categories, setCategories] = useState([]);
   const [featuredNews, setFeaturedNews] = useState([]);
   const [auth, setAuth] = useState({ authenticated: false, user: null });
@@ -29,7 +28,7 @@ const Navbar = () => {
 
   const fetchAuth = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/user/me`, { withCredentials: true });
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/user/getUser`, { withCredentials: true });
       setAuth({ authenticated: !!res.data?.authenticated, user: res.data?.user || null });
     } catch {
       setAuth({ authenticated: false, user: null });
@@ -109,12 +108,14 @@ const Navbar = () => {
       return;
     }
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/user/logout`, {}, { withCredentials: true });
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/user/logout`, {}, { withCredentials: true });
       setShowProfileMenu(false);
       setAuth({ authenticated: false, user: null });
-      try { localStorage.setItem('auth_change', Date.now().toString()); } catch {}
+      try { localStorage.setItem('auth_change', Date.now().toString()); } catch(error) {
+        console.error('Something Went Wrong');
+      }
       toast.success('Logged out successfully');
-    } catch (e) {
+    } catch (error) {
       toast.error('Failed to logout. Please try again.');
     }
   };
@@ -241,10 +242,7 @@ const Navbar = () => {
                   </button> */}
 
                   <button 
-                    onClick={() => {
-                      setShowSearchBox(!showSearchBox)
-                      setSearchModal(false)
-                    }}
+                    onClick={() => setIsSearchModalOpen(true)}
                     className='text-white transition-all duration-300'
                   >
                     <BiSearch size={24} className="hover:scale-110 transition-transform" />
@@ -279,10 +277,7 @@ const Navbar = () => {
                   </Link>
                 )}
                 <button 
-                  onClick={() => {
-                    setShowSearchBox(!showSearchBox)
-                    setSearchModal(false)
-                  }}
+                  onClick={() => setIsSearchModalOpen(true)}
                   className='p-2 text-white hover:text-secondary rounded-lg transition-all duration-300'
                 >
                   <BiSearch size={24} />
@@ -330,26 +325,10 @@ const Navbar = () => {
       </div>
 
       {/* Search Modal */}
-      {showSearchBox && (
-        <div className="fixed top-0 right-0 mt-48 mr-4 bg-white rounded-lg shadow-xl border border-gray-200 w-72 z-50 animate-fadeIn">
-          <div className="flex items-center p-2">
-            <input
-              type="text"
-              placeholder="Search..."
-              onChange={() => setSearchModal(true)}
-              className="flex-1 px-4 py-2 outline-none text-gray-700   rounded-lg"
-              autoFocus
-            />
-            <button 
-              className="p-2 text-white hover:bg-[#F05922] bg-primary rounded-lg transition-colors ml-2"
-              onClick={() => setSearchModal(true)}
-            >
-              <BiSearch size={20} />
-            </button>
-          </div>
-          {searchModal && <SearchModal />}
-        </div>
-      )}
+      <SearchModal 
+        isOpen={isSearchModalOpen} 
+        onClose={() => setIsSearchModalOpen(false)} 
+      />
 
       {/* Breaking News */}
       <div className="w-full bg-white">

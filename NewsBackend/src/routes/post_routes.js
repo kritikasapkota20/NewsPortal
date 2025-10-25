@@ -1,5 +1,5 @@
 import express from "express";
-import {createPost,deletePost,getPosts,editPost,getHeadNews,getMainNews,getPostsByCategory,getPost,incrementPostView,getRecommendedPosts,getPersonalizedRecommendations} from "../controllers/post.js";
+import {createPost,deletePost,getPosts,editPost,getHeadNews,getMainNews,getPostsByCategory,getPost,incrementPostView,getRecommendedPosts,getPersonalizedRecommendations, searchPosts} from "../controllers/post.js";
 import { getPostsPaginated, getGroupedPostsForAdmin } from "../controllers/post.js";
 
 import upload from "../helper/filehelper.js";
@@ -18,5 +18,6 @@ router.patch("/editPost/:category/:id",upload.single("file"),editPost);
 router.patch("/incrementView/:id", incrementPostView);
 router.get("/recommendedPosts", getRecommendedPosts);
 router.post("/recommendations", getPersonalizedRecommendations);
+router.get("/search", searchPosts);
 
 export default router;

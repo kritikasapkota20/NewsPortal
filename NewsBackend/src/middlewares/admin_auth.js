@@ -3,8 +3,7 @@ import Admin from "../models/admin.js";
 
 export const protectAdmin = async (req, res, next) => {
   try {
-    const token = req.cookies?.token;
-
+const token = req.cookies?.adminToken;
     // 🔒 Check if token exists
     if (!token) {
       return res.status(401).json({ message: "Unauthorized. Please login first." });

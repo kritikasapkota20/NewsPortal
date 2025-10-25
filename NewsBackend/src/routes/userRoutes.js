@@ -1,14 +1,8 @@
 import express from "express";
 import passport from "passport";
 import jwt from "jsonwebtoken";
-import {
-  registerUser,
-  loginUser,
-  logoutUser,
-  verifyEmail,
-  getUser,
-  getAllUsers,deleteUser,updateUserRole
-} from "../controllers/user_auth.js";
+import userAuthController from "../controllers/user_auth.js";
+const { registerUser, loginUser, logoutUser, verifyEmail, getUser, getAllUsers, deleteUser, updateUserRole } = userAuthController;
 import User from "../models/User.js"; 
 import { protectAdmin } from "../middlewares/admin_auth.js";
 
@@ -23,6 +17,7 @@ router.get("/getUser", getUser);
 router.get("/getUsers", protectAdmin, getAllUsers);
 router.delete("/delete/:id", protectAdmin, deleteUser);
 router.put("/updateRole/:id", protectAdmin, updateUserRole);
+// router.get("/search", protectAdmin, searchUsers);
 
 
 // 🔁 REFRESH TOKEN ENDPOINT (new)

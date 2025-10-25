@@ -258,7 +258,7 @@ export const getUser = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("username email role isVerified createdAt");
+    const users = await User.find().select("username email role isVerified createdAt lastLogin");
     res.status(200).json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -320,5 +320,45 @@ export const updateUserRole = async (req, res) => {
 
 
 
-export default { registerUser, loginUser,logoutUser,getUser,getAllUsers };
+// Search users by username or email
+// const searchUsers = async (req, res) => {
+//   try {
+//     const { q } = req.query;
+//     const limit = parseInt(req.query.limit) || 10;
+    
+//     if (!q || q.trim().length === 0) {
+//       return res.status(200).json({
+//         success: true,
+//         results: [],
+//         total: 0
+//       });
+//     }
+
+//     const searchRegex = new RegExp(q.trim(), 'i');
+    
+//     const users = await User.find({
+//       $or: [
+//         { username: searchRegex },
+//         { email: searchRegex }
+//       ]
+//     })
+//     .sort({ createdAt: -1 })
+//     .limit(limit)
+//     .select('username email role createdAt lastLogin');
+
+//     res.status(200).json({
+//       success: true,
+//       results: users,
+//       total: users.length
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal server error",
+//       error: error.message
+//     });
+//   }
+// };
+
+export default { registerUser, loginUser,logoutUser,getUser,getAllUsers,deleteUser,updateUserRole,verifyEmail };
 

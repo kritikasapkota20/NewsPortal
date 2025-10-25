@@ -4,9 +4,9 @@ import { FaFacebook,FaTimes } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ToastContainer, toast } from 'react-toastify';
 import axios from "axios";  
-import axiosInstance from "../api/axios";
+// import axiosInstance from "../api/axios";
 
-axiosInstance.get("/api/posts");
+// axiosInstance.get("/api/posts");
 
 
 const AuthForm = () => {
@@ -82,7 +82,7 @@ console.log('Error parsing auth_verify data from storage event', error);
 
     try {
       if (isSignup) {
-        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/user/register`, {
+        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/user/register`, {
           username: name,
           email,
           password,
@@ -91,7 +91,7 @@ console.log('Error parsing auth_verify data from storage event', error);
      
         toast.success(res.data.message || 'Registered successfully. Please verify your email.');
       } else {
-        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/user/login`, {
+        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/user/login`, {
           email,
           password,
         }, { withCredentials: true });
