@@ -248,7 +248,7 @@ export const getUser = async (req, res) => {
     } catch {
       return res.status(401).json({ authenticated: false });
     }
-    const user = await User.findById(payload.userId).select("username email isVerified");
+    const user = await User.findById(payload.userId).select("username email role isVerified");
     if (!user) return res.status(401).json({ authenticated: false });
     return res.status(200).json({ authenticated: true, user });
   } catch (e) {

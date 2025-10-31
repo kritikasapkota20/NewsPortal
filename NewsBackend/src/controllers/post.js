@@ -1,4 +1,5 @@
 import Post from "../models/post.js";
+import AuditLog from "../models/audit_log.js";
 import slugify from "slugify"; 
 import Category from "../models/categorymodel.js"; 
 import mongoose from "mongoose";
@@ -6,7 +7,7 @@ import mongoose from "mongoose";
 
 const createPost = async (req, res) => {
   try {
-    const { title, category, subCategory, content, isHeadNews,isMainNews } = req.body;
+    const { title, category, subCategory, content, isHeadNews,isMainNews, status } = req.body;
     const image = req.file ? `/uploads/${req.file.filename}` : "";
 
     if (!title || !category || !content) {
@@ -38,10 +39,13 @@ const createPost = async (req, res) => {
       image,
       isHeadNews: req.body.isHeadNews === "true" || req.body.isHeadNews === true,
       isMainNews: req.body.isMainNews === "true" || req.body.isMainNews === true,
-
+      assignedEditor: req.user?.userId || null,
+      status: typeof status === 'string' ? status : 'draft',
     });
 
     await newPost.save();
+    // Audit log
+    try { await AuditLog.create({ action: 'create', post: newPost._id, user: req.user?.userId, role: req.user?.role, details: { title } }); } catch {}
     res.status(201).json({ message: "Post created successfully", post: newPost });
   } catch (error) {
     res.status(500).json({ message: "Internal server error", error: error.message });
@@ -76,7 +80,7 @@ const createPost = async (req, res) => {
 // }
 const getHeadNews = async (req, res) => {
   try {
-   const headingPosts = await Post.find({ isHeadNews: true })
+   const headingPosts = await Post.find({ isHeadNews: true, status: 'published' })
       .populate('category', 'name slug') // Populate category details
       .sort({ createdAt: -1 }) // Sort latest first
       .limit(2) // Limit number of posts
@@ -96,7 +100,7 @@ const getHeadNews = async (req, res) => {
 };
 const getMainNews = async (req, res) => {
   try {
-   const MainPosts = await Post.find({ isMainNews: true })
+   const MainPosts = await Post.find({ isMainNews: true, status: 'published' })
       .populate('category', 'name slug') // Populate category details
       .sort({ createdAt: -1 }) // Sort latest first
       .limit(5) // Limit number of posts
@@ -117,7 +121,7 @@ const getMainNews = async (req, res) => {
 
 const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
+    const posts = await Post.find({ status: 'published' })
       .populate('category', 'name slug') // get category details
       .sort({ createdAt: 1 })
       .select('title slug subCategory category isHeadNews isMainNews content image createdAt');
@@ -160,7 +164,7 @@ const getPostsPaginated = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select('title slug subCategory category isHeadNews isMainNews content image createdAt');
+      .select('title slug subCategory category isHeadNews isMainNews content image createdAt status');
 
     res.status(200).json({
       success: true,
@@ -185,11 +189,25 @@ const deletePost = async (req, res) => {
         if (!id || !category) {
             return res.status(400).json({ message: "Post ID and category are required" });
         }
-        // const Post = getPostModel(category);
+        // Only owner (assignedEditor) or admin can delete; if req.user exists and role editor, enforce
+        const post = await Post.findById(id)
+        if (!post) return res.status(404).json({ message: "Post not found" })
+
+        if (req.user?.role && String(req.user.role).toLowerCase() === 'editor') {
+          if (!post.assignedEditor || String(post.assignedEditor) !== String(req.user.userId)) {
+            return res.status(403).json({ message: "Not allowed" })
+          }
+          if (post.status === 'published') {
+            return res.status(403).json({ message: "Editors cannot delete published posts" })
+          }
+        }
+
         const deletedPost = await Post.findByIdAndDelete(id);
         if (!deletedPost) {
             return res.status(404).json({ message: "Post not found" });
         }
+        // Audit log
+        try { await AuditLog.create({ action: 'delete', post: id, user: req.user?.userId, role: req.user?.role }); } catch {}
         res.status(200).json({ message: "Post deleted successfully" });
     } catch (error) {
         res.status(500).json({ success: false, message: "Internal server error", error: error.message });
@@ -211,6 +229,16 @@ const editPost = async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
+    // Ownership and published enforcement for editor
+    if (req.user?.role && String(req.user.role).toLowerCase() === 'editor') {
+      if (!existingPost.assignedEditor || String(existingPost.assignedEditor) !== String(req.user.userId)) {
+        return res.status(403).json({ message: "Not allowed" })
+      }
+      if (existingPost.status === 'published') {
+        return res.status(403).json({ message: "Editors cannot edit published posts" })
+      }
+    }
+
     // Fetch the category to validate subCategory if provided
     const categoryData = await Category.findById(category);
     if (!categoryData) {
@@ -229,6 +257,8 @@ const editPost = async (req, res) => {
     }
 
     if (content) existingPost.content = content;
+    // Allow changing category
+    existingPost.category = categoryData._id;
     if (subCategory !== undefined) existingPost.subCategory = subCategory;
     if (image) existingPost.image = image;
     
@@ -237,6 +267,8 @@ const editPost = async (req, res) => {
     if (isMainNews !== undefined) existingPost.isMainNews = isMainNews === 'true' || isMainNews === true;
 
     const updatedPost = await existingPost.save();
+    // Audit log
+    try { await AuditLog.create({ action: 'update', post: updatedPost._id, user: req.user?.userId, role: req.user?.role, details: { title: updatedPost.title } }); } catch {}
 
     res.status(200).json({
       success: true,
@@ -299,14 +331,14 @@ const getPostsByCategory = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Category not found' });
     }
 
-    const filter = { category: category._id };
+    const filter = { category: category._id, status: { $in: ['pending_review', 'published'] } };
     const total = await Post.countDocuments(filter);
     const posts = await Post.find(filter)
       .populate('category', 'name slug')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select('title slug subCategory category isHeadNews isMainNews content image createdAt description');
+      .select('title slug subCategory category isHeadNews isMainNews content image createdAt description status');
 
     res.status(200).json({
       success: true,
@@ -334,15 +366,15 @@ const getGroupedPostsForAdmin = async (req, res) => {
     const categories = await Category.find({}).select('name slug');
     const results = [];
 
-    // Fetch posts per category
+    // Fetch posts per category (only pending or published)
     for (const category of categories) {
-      const filter = { category: category._id };
+      const filter = { category: category._id, status: { $in: ['pending_review', 'published'] } };
       const total = await Post.countDocuments(filter);
       const posts = await Post.find(filter)
         .populate('category', 'name slug')
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select('title slug subCategory category isHeadNews isMainNews content image createdAt');
+        .select('title slug subCategory category isHeadNews isMainNews content image createdAt status');
 
       results.push({
         category,

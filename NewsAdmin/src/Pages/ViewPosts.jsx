@@ -203,6 +203,10 @@ const ViewPosts = () => {
                       ? "bg-green-500 bg-opacity-20"
                       : singlePost.status === "draft"
                       ? "bg-yellow-500 bg-opacity-20"
+                      : singlePost.status === "pending_review"
+                      ? "bg-orange-500 bg-opacity-20"
+                      : singlePost.status === "rejected"
+                      ? "bg-red-500 bg-opacity-20"
                       : "bg-gray-500 bg-opacity-20"
                   }`}>
                     {singlePost.status || "Published"}
@@ -339,6 +343,10 @@ const ViewPosts = () => {
                               ? "bg-green-500 bg-opacity-20"
                               : post.status === "draft"
                               ? "bg-yellow-500 bg-opacity-20"
+                              : post.status === "pending_review"
+                              ? "bg-orange-500 bg-opacity-20"
+                              : post.status === "rejected"
+                              ? "bg-red-500 bg-opacity-20"
                               : "bg-gray-500 bg-opacity-20"
                           }`}>
                             {post.status || "Published"}

@@ -1,15 +1,34 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { MdDashboardCustomize, MdManageSearch, MdSettings } from "react-icons/md";
 import { IoIosCreate } from "react-icons/io";
 import { ImUsers } from "react-icons/im";
 import { TbCategoryFilled } from "react-icons/tb";
 import { LiaCommentSolid } from "react-icons/lia";
-import { FaBars } from "react-icons/fa";
+import { FaBars, FaClipboardCheck } from "react-icons/fa";
+import axios from 'axios'
+
+const API = import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'
 
 const Sidebar = () => {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const res = await axios.get(`${API}/admin/posts/pending`, { withCredentials: true })
+        const count = Array.isArray(res.data?.posts) ? res.data.posts.length : 0
+        setPendingCount(count)
+      } catch (e) {
+        setPendingCount(0)
+      }
+    }
+    fetchPending()
+    const id = setInterval(fetchPending, 30000)
+    return () => clearInterval(id)
+  }, [])
 
   const isActive = (path) => {
     if (
@@ -27,6 +46,7 @@ const Sidebar = () => {
     { name: "Dashboard", icon: <MdDashboardCustomize />, path: "/Admin/dashboard" },
     { name: "Create Post", icon: <IoIosCreate />, path: "/Admin/create-post" },
     { name: "Manage Post", icon: <MdManageSearch />, path: "/Admin/manage-posts" },
+    { name: "Review Posts", icon: <FaClipboardCheck />, path: "/Admin/review-posts" },
     { name: "Users", icon: <ImUsers />, path: "/Admin/users" },
     { name: "Categories", icon: <TbCategoryFilled />, path: "/Admin/manage-categories" },
     { name: "Comments", icon: <LiaCommentSolid />, path: "/Admin/comments" },
@@ -79,15 +99,22 @@ const Sidebar = () => {
                     {item.icon}
                   </div>
                   {!isCollapsed && (
-                    <li
-                      className={`font-medium ${
-                        active
-                          ? 'text-primary'
-                          : 'text-white group-hover:text-primary'
-                      }`}
-                    >
-                      {item.name}
-                    </li>
+                    <div className="relative">
+                      <li
+                        className={`font-medium ${
+                          active
+                            ? 'text-primary'
+                            : 'text-white group-hover:text-primary'
+                        }`}
+                      >
+                        {item.name}
+                      </li>
+                      {item.path === '/Admin/review-posts' && pendingCount > 0 && (
+                        <span className="absolute -top-3 -right-5 inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-semibold bg-red-500 text-white rounded-full px-1 shadow-sm">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </Link>

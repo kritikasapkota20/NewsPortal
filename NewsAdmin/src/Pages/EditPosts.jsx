@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { IoIosCreate } from "react-icons/io";
+import { FaCheck, FaTimes } from "react-icons/fa";
 
 const EditPost = () => {
   const [formData, setFormData] = useState({
@@ -12,12 +13,15 @@ const EditPost = () => {
     image: null,
     isHeadNews: false,
     isMainNews: false,
+    status: "draft",
   });
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [currentImage, setCurrentImage] = useState('');
 
   const navigate = useNavigate();
   const { id, category } = useParams();
@@ -64,7 +68,9 @@ const EditPost = () => {
               image: null,
               isHeadNews: post.isHeadNews || false,
               isMainNews: post.isMainNews || false,
+              status: post.status || "draft",
             });
+            setCurrentImage(post.image || '');
           } else {
             setError("Post not found");
           }
@@ -103,6 +109,7 @@ const EditPost = () => {
     e.preventDefault();
     try {
       setSubmitting(true);
+      setMsg('');
       const formDataToSend = new FormData();
       formDataToSend.append("title", formData.title);
       formDataToSend.append("category", formData.category);
@@ -115,6 +122,7 @@ const EditPost = () => {
       }
       formDataToSend.append("isHeadNews", formData.isHeadNews);
       formDataToSend.append("isMainNews", formData.isMainNews);
+      formDataToSend.append("status", formData.status);
 
       const response = await axios.patch(
         `http://localhost:5000/api/post/editPost/${formData.category}/${id}`,
@@ -127,18 +135,57 @@ const EditPost = () => {
       );
 
       if (response.data.success) {
-        alert("Post updated successfully");
-        navigate("/admin/dashboard");
+        setMsg("Post updated successfully");
+        setTimeout(() => navigate("/Admin/manage-posts"), 1500);
       } else {
-        const errorMessage = response.data.message || "Failed to update post";
-        alert(errorMessage);
+        setError(response.data.message || "Failed to update post");
       }
     } catch (error) {
       console.error("Error updating post:", error);
-      const errorMessage =
+      setError(
         error.response?.data?.message ||
-        "Failed to update post. Please try again.";
-      alert(errorMessage);
+        "Failed to update post. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const approvePost = async () => {
+    try {
+      setSubmitting(true);
+      setMsg('');
+      const response = await axios.patch(
+        `http://localhost:5000/api/admin/posts/${id}/approve`,
+        {},
+        { withCredentials: true }
+      );
+      if (response.data.message) {
+        setMsg("Post approved and published successfully");
+        setTimeout(() => navigate("/Admin/manage-posts"), 1500);
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || "Failed to approve post");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const rejectPost = async () => {
+    try {
+      setSubmitting(true);
+      setMsg('');
+      const response = await axios.patch(
+        `http://localhost:5000/api/admin/posts/${id}/reject`,
+        {},
+        { withCredentials: true }
+      );
+      if (response.data.message) {
+        setMsg("Post rejected successfully");
+        setTimeout(() => navigate("/Admin/manage-posts"), 1500);
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || "Failed to reject post");
     } finally {
       setSubmitting(false);
     }
@@ -178,6 +225,9 @@ const EditPost = () => {
         <IoIosCreate className="text-primary text-2xl" />
         <h1 className="text-2xl font-semibold text-gray-800">Edit Post</h1>
       </div>
+
+      {msg && <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">{msg}</div>}
+      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
 
       <form
         onSubmit={handleSubmit}
@@ -267,6 +317,29 @@ const EditPost = () => {
           <p className="text-sm text-gray-500 mt-1">
             Leave empty to keep the current image
           </p>
+          {currentImage && (
+            <div className="mt-2 flex items-center gap-3">
+              <img src={`http://localhost:5000${currentImage}`} alt="Current" className="w-20 h-20 object-cover rounded" />
+              <span className="text-sm text-gray-600">Current image</span>
+            </div>
+          )}
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-base font-bold mb-2">
+            Status:
+          </label>
+          <select
+            name="status"
+            value={formData.status}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="draft">Draft</option>
+            <option value="pending_review">Pending Review</option>
+            <option value="published">Published</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
 
         <div className="mb-4 flex items-center gap-4">
@@ -302,25 +375,53 @@ const EditPost = () => {
           </label>
         </div>
 
-        <div className="flex gap-4">
-          <button
-            type="button"
-            onClick={() => navigate("/admin/dashboard")}
-            className="w-1/3 bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-300 hover:bg-gray-600"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className={`w-2/3 text-white px-6 py-2 rounded-lg transition-colors duration-300 ${
-              submitting 
-                ? "opacity-50 cursor-not-allowed bg-gray-400" 
-                : "bg-primary hover:bg-primaryHover"
-            }`}
-          >
-            {submitting ? "Updating..." : "Update Post"}
-          </button>
+        <div className="space-y-4">
+          {/* Approval buttons for pending posts */}
+          {formData.status === 'pending_review' && (
+            <div className="flex gap-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
+              <span className="text-orange-700 font-medium">This post is pending review. You can:</span>
+              <button
+                type="button"
+                onClick={approvePost}
+                disabled={submitting}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                <FaCheck />
+                Approve & Publish
+              </button>
+              <button
+                type="button"
+                onClick={rejectPost}
+                disabled={submitting}
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                <FaTimes />
+                Reject
+              </button>
+            </div>
+          )}
+
+          {/* Regular action buttons */}
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => navigate("/Admin/manage-posts")}
+              className="w-1/3 bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-300 hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className={`w-2/3 text-white px-6 py-2 rounded-lg transition-colors duration-300 ${
+                submitting 
+                  ? "opacity-50 cursor-not-allowed bg-gray-400" 
+                  : "bg-primary hover:bg-primaryHover"
+              }`}
+            >
+              {submitting ? "Updating..." : "Update Post"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

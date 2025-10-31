@@ -161,8 +161,12 @@ const ManagePosts = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-gray-500">{format(new Date(post.createdAt), "MMM d yyyy, h:mm a")}</td>
-                      <td className="px-4 py-4 text-sm font-medium space-x-3">
-                        <button className="bg-red-500 text-white px-4 py-1.5 rounded-md">Pending</button>
+                      <td className="px-4 py-4 text-sm font-medium">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {post.status === 'published' ? 'Published' : 'Pending'}
+                        </span>
                       </td>
                       <td className="px-4 py-4 text-sm font-medium">
                         <div className="flex flex-wrap items-center gap-3">

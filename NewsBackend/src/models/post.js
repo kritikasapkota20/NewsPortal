@@ -35,6 +35,17 @@ const postSchema=new mongoose.Schema({
         type:String,
         required:true,
     },
+  assignedEditor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'pending_review', 'published', 'rejected'],
+    default: 'draft',
+  },
+  viewCount: { type: Number, default: 0 },
  createdAt:{
     type:Date,
     default:Date.now,
