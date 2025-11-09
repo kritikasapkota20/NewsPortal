@@ -59,7 +59,9 @@ if (!strongPasswordRegex.test(password)) {
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     });
 
-    const frontendBase = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+    // Default to localhost:5173 (typical Vite frontend port) if FRONTEND_URL not set
+    // IMPORTANT: Set FRONTEND_URL in your .env file to match your frontend URL (e.g., http://localhost:5173 or http://localhost:5174)
+    const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
     const verifyUrl = `${frontendBase}/verify/${emailVerifyToken}`;
 
     await transporter.sendMail({

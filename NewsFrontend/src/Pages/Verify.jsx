@@ -10,7 +10,7 @@ const Verify = () => {
   useEffect(() => {
     const verify = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/user/verify/${token}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/user/verify/${token}`);
         const msg = res.data.message || 'You are registered! Please login to continue.';
         const email = res.data.email || '';
         setStatus({ loading: false, success: true, message: msg, email });
