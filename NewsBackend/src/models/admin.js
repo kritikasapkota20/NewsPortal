@@ -24,6 +24,10 @@ const adminSchema = new mongoose.Schema({
         required: true,
         // enum: ["admin", "superadmin"]
     },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
     isActive: {
         type: Boolean,
         default: true

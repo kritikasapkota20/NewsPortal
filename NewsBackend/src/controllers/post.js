@@ -7,11 +7,21 @@ import mongoose from "mongoose";
 
 const createPost = async (req, res) => {
   try {
-    const { title, category, subCategory, content, isHeadNews,isMainNews, status } = req.body;
+    const { title, category, subCategory, content, isHeadNews,isMainNews, status, tags } = req.body;
     const image = req.file ? `/uploads/${req.file.filename}` : "";
 
     if (!title || !category || !content) {
       return res.status(400).json({ message: "All fields are required" });
+    }
+    
+    // Parse tags if provided as string (comma-separated) or array
+    let tagsArray = [];
+    if (tags) {
+      if (typeof tags === 'string') {
+        tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      } else if (Array.isArray(tags)) {
+        tagsArray = tags.map(tag => typeof tag === 'string' ? tag.trim() : String(tag).trim()).filter(tag => tag.length > 0);
+      }
     }
 
     // Check category existence and validate subCategory
@@ -37,6 +47,7 @@ const createPost = async (req, res) => {
       subCategory,
       content,
       image,
+      tags: tagsArray,
       isHeadNews: req.body.isHeadNews === "true" || req.body.isHeadNews === true,
       isMainNews: req.body.isMainNews === "true" || req.body.isMainNews === true,
       assignedEditor: req.user?.userId || null,
@@ -298,7 +309,8 @@ const getPost = async (req, res) => {
     }
 
     const post = await Post.findById(id)
-      .populate('category', 'name slug');
+      .populate('category', 'name slug')
+      .populate('assignedEditor', 'username');
 
     if (!post) {
       return res.status(404).json({ 
@@ -578,33 +590,41 @@ const getPersonalizedRecommendations = async (req, res) => {
   }
 };
 
-// Search posts by title, content, or category
+// Search posts by title, content, category, or date
 const searchPosts = async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, date } = req.query;
     const limit = parseInt(req.query.limit) || 10;
     
-    if (!q || q.trim().length === 0) {
-      return res.status(200).json({
-        success: true,
-        results: [],
-        total: 0
-      });
+    const query = { status: { $in: ['pending_review', 'published'] } };
+
+    // Date filter
+    if (date) {
+      const searchDate = new Date(date);
+      if (!isNaN(searchDate.getTime())) {
+        const startOfDay = new Date(searchDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(searchDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query.createdAt = { $gte: startOfDay, $lte: endOfDay };
+      }
     }
 
-    const searchRegex = new RegExp(q.trim(), 'i');
-    
-    const posts = await Post.find({
-      $or: [
+    // Text search
+    if (q && q.trim().length > 0) {
+      const searchRegex = new RegExp(q.trim(), 'i');
+      query.$or = [
         { title: searchRegex },
         { content: { $regex: searchRegex } },
         { subCategory: searchRegex }
-      ]
-    })
-    .populate('category', 'name slug')
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .select('title slug content image createdAt category subCategory');
+      ];
+    }
+    
+    const posts = await Post.find(query)
+      .populate('category', 'name slug')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('title slug content image createdAt category subCategory');
 
     res.status(200).json({
       success: true,
@@ -620,8 +640,177 @@ const searchPosts = async (req, res) => {
   }
 };
 
+// Get most read posts per category (highest views)
+const getMostReadPosts = async (req, res) => {
+  try {
+    const { categorySlug } = req.params;
+    const limit = parseInt(req.query.limit) || 5;
+
+    let query = { status: 'published' };
+
+    // If category is provided, filter by category
+    if (categorySlug && categorySlug !== 'all') {
+      const category = await Category.findOne({ slug: categorySlug }).select('_id');
+      if (!category) {
+        return res.status(404).json({ success: false, message: 'Category not found' });
+      }
+      query.category = category._id;
+    }
+
+    const posts = await Post.find(query)
+      .populate('category', 'name slug')
+      .populate('assignedEditor', 'username')
+      .sort({ viewCount: -1, createdAt: -1 })
+      .limit(limit)
+      .select('title slug content image createdAt category subCategory viewCount assignedEditor');
+
+    res.status(200).json({
+      success: true,
+      count: posts.length,
+      posts
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+
+// Content-based recommendation system
+// Get recommended articles based on same category or overlapping tags
+const getContentBasedRecommendations = async (req, res) => {
+  try {
+    const { articleId } = req.params;
+    
+    // Find the current article
+    const currentArticle = await Post.findById(articleId)
+      .populate('category', 'name slug')
+      .select('category tags _id');
+    
+    if (!currentArticle) {
+      return res.status(404).json({
+        success: false,
+        message: 'Article not found'
+      });
+    }
+
+    // Build query for recommendations
+    const query = {
+      _id: { $ne: currentArticle._id }, // Exclude current article
+      status: { $in: ['pending_review', 'published'] } // Only published or pending articles
+    };
+
+    // Build conditions for category or tag matching
+    const conditions = [];
+
+    // Same category condition
+    if (currentArticle.category) {
+      conditions.push({ category: currentArticle.category._id });
+    }
+
+    // Overlapping tags condition
+    if (currentArticle.tags && currentArticle.tags.length > 0) {
+      conditions.push({ tags: { $in: currentArticle.tags } });
+    }
+
+    // If we have conditions, add them to query
+    if (conditions.length > 0) {
+      query.$or = conditions;
+    } else {
+      // If no category or tags, return trending articles
+      // This handles edge cases
+    }
+
+    // Find recommended articles
+    // Sort by: views (descending) first, then by recent publish date (descending)
+    const recommendations = await Post.find(query)
+      .populate('category', 'name slug')
+      .select('title slug category tags viewCount createdAt image')
+      .sort({ viewCount: -1, createdAt: -1 })
+      .limit(5);
+
+    // If we don't have enough recommendations, fill with trending articles
+    if (recommendations.length < 5) {
+      const excludeIds = [currentArticle._id, ...recommendations.map(r => r._id)];
+      
+      const trendingQuery = {
+        _id: { $nin: excludeIds },
+        status: { $in: ['pending_review', 'published'] }
+      };
+      
+      const trendingArticles = await Post.find(trendingQuery)
+        .populate('category', 'name slug')
+        .select('title slug category tags viewCount createdAt image')
+        .sort({ viewCount: -1, createdAt: -1 })
+        .limit(5 - recommendations.length);
+      
+      recommendations.push(...trendingArticles);
+    }
+
+    res.status(200).json({
+      success: true,
+      count: recommendations.length,
+      recommendations: recommendations.map(article => ({
+        _id: article._id,
+        title: article.title,
+        slug: article.slug,
+        category: article.category,
+        tags: article.tags || [],
+        viewCount: article.viewCount || 0,
+        createdAt: article.createdAt,
+        image: article.image
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Get trending articles for homepage (no articleId needed)
+const getTrendingArticles = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    
+    const trendingArticles = await Post.find({
+      status: { $in: ['pending_review', 'published'] }
+    })
+      .populate('category', 'name slug')
+      .select('title slug category tags viewCount createdAt image')
+      .sort({ viewCount: -1, createdAt: -1 })
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      count: trendingArticles.length,
+      recommendations: trendingArticles.map(article => ({
+        _id: article._id,
+        title: article.title,
+        slug: article.slug,
+        category: article.category,
+        tags: article.tags || [],
+        viewCount: article.viewCount || 0,
+        createdAt: article.createdAt,
+        image: article.image
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 export {createPost,getPosts,deletePost,editPost, 
   getHeadNews,getMainNews,getPostsByCategory,getPost,
   incrementPostView, getRecommendedPosts, getPersonalizedRecommendations,
-  getPostsPaginated, getGroupedPostsForAdmin, searchPosts
+  getPostsPaginated, getGroupedPostsForAdmin, searchPosts, getMostReadPosts,
+  getContentBasedRecommendations, getTrendingArticles
 };

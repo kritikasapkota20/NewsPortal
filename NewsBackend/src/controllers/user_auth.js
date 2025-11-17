@@ -362,5 +362,91 @@ export const updateUserRole = async (req, res) => {
 //   }
 // };
 
-export default { registerUser, loginUser,logoutUser,getUser,getAllUsers,deleteUser,updateUserRole,verifyEmail };
+// Change password for User
+export const changeUserPassword = async (req, res) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+  
+  try {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: "All fields are required!" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "New passwords do not match!" });
+    }
+
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+[\]{};':"\\|,.<>/?-]).{8,}$/;
+    if (!strongPasswordRegex.test(newPassword)) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const validPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ message: "Current password is incorrect!" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Password changed successfully!" });
+  } catch (error) {
+    console.error("Error changing password:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// Get user profile
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// Update user profile
+export const updateUserProfile = async (req, res) => {
+  const { username, email } = req.body;
+  try {
+    if (!username || !email) {
+      return res.status(400).json({ message: "Username and email are required!" });
+    }
+    
+    const existingUser = await User.findOne({ email, _id: { $ne: req.user.userId } });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email is already taken!" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { username, email },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    res.status(200).json({
+      message: "Profile updated successfully!",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export default { registerUser, loginUser,logoutUser,getUser,getAllUsers,deleteUser,updateUserRole,verifyEmail, changeUserPassword, getUserProfile, updateUserProfile };
 

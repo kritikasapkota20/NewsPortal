@@ -2,7 +2,8 @@ import express from "express";
 import passport from "passport";
 import jwt from "jsonwebtoken";
 import userAuthController from "../controllers/user_auth.js";
-const { registerUser, loginUser, logoutUser, verifyEmail, getUser, getAllUsers, deleteUser, updateUserRole } = userAuthController;
+const { registerUser, loginUser, logoutUser, verifyEmail, getUser, getAllUsers, deleteUser, updateUserRole, changeUserPassword, getUserProfile, updateUserProfile } = userAuthController;
+import { verifyToken } from "../middlewares/user_auth.js";
 import User from "../models/User.js"; 
 import { protectAdmin } from "../middlewares/admin_auth.js";
 
@@ -17,6 +18,9 @@ router.get("/getUser", getUser);
 router.get("/getUsers", protectAdmin, getAllUsers);
 router.delete("/delete/:id", protectAdmin, deleteUser);
 router.put("/updateRole/:id", protectAdmin, updateUserRole);
+router.get("/profile", verifyToken, getUserProfile);
+router.put("/profile", verifyToken, updateUserProfile);
+router.patch("/change-password", verifyToken, changeUserPassword);
 // router.get("/search", protectAdmin, searchUsers);
 
 

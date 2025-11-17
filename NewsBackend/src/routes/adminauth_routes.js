@@ -1,5 +1,5 @@
 import express from "express";
-import { registerAdmin, loginAdmin, logoutAdmin, getAdminProfile, updateAdminProfile } from "../controllers/admin_auth.js";
+import { registerAdmin, loginAdmin, logoutAdmin, getAdminProfile, updateAdminProfile, changeAdminPassword } from "../controllers/admin_auth.js";
 import { protectAdmin } from "../middlewares/admin_auth.js";
 import Post from "../models/post.js";
 import AuditLog from "../models/audit_log.js";
@@ -70,7 +70,8 @@ router.patch("/posts/:id/unpublish", protectAdmin, async (req, res) => {
 });
 
 // Profile routes
-// router.get("/profile", protectAdmin, getAdminProfile);
-// router.put("/profile", protectAdmin, updateAdminProfile);
+router.get("/profile", protectAdmin, getAdminProfile);
+router.put("/profile", protectAdmin, updateAdminProfile);
+router.patch("/change-password", protectAdmin, changeAdminPassword);
 
 export default router;

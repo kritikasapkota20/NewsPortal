@@ -5,9 +5,93 @@ import { motion } from 'framer-motion';
 import UseDate from './UseDate';
 import { BsClock } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
-import { FaUserCircle } from "react-icons/fa";
+import { FaUserCircle, FaBookmark, FaRegBookmark, FaEdit, FaTrash, FaReply } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import ArticleRecommendations from './ArticleRecommendations';
+import { recordPostView } from '../utils/viewTracker';
+
+// Comment Edit Form Component
+const CommentEditForm = ({ comment, onSave, onCancel }) => {
+  const [editText, setEditText] = useState(comment.text);
+
+  return (
+    <div className="mt-2">
+      <textarea
+        value={editText}
+        onChange={(e) => setEditText(e.target.value)}
+        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+        rows="3"
+      />
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => onSave(editText)}
+          className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition"
+        >
+          Save
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Most Read Section Component
+const MostReadSection = ({ categorySlug }) => {
+  const [mostReadPosts, setMostReadPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMostRead = async () => {
+      try {
+        setLoading(true);
+        const url = categorySlug
+          ? `${import.meta.env.VITE_SERVERAPI}/post/most-read/${categorySlug}?limit=5`
+          : `${import.meta.env.VITE_SERVERAPI}/post/most-read/all?limit=5`;
+        const res = await axios.get(url);
+        setMostReadPosts(res.data.posts || []);
+      } catch (error) {
+        console.error("Error fetching most read posts:", error);
+        setMostReadPosts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMostRead();
+  }, [categorySlug]);
+
+  if (loading) {
+    return <div className="text-center py-4 text-gray-500">Loading...</div>;
+  }
+
+  if (mostReadPosts.length === 0) {
+    return <div className="text-center py-4 text-gray-500">No posts found</div>;
+  }
+
+  return (
+    <div>
+      {mostReadPosts.map((item) => (
+        <div key={item._id} className="flex gap-4 items-center py-3 border-b last:border-b-0">
+          <img
+            src={item.image?.startsWith("http") ? item.image : `http://localhost:5000${item.image}`}
+            className="w-[70px] h-[55px] object-cover rounded"
+            alt={item.title}
+          />
+          <Link to={`/${(item.category?.slug || '').toLowerCase()}/${item._id}/${item.slug}`}>
+            <p className="font-semibold text-[15px] hover:text-[#2170b8] transition-colors">
+              {item.title}
+            </p>
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const Samachardetails = ({data}) => {
   const { id } = useParams(); // assuming the URL is like /samacharDetails/:id
@@ -16,31 +100,181 @@ const Samachardetails = ({data}) => {
   const [relatedPosts, setRelatedPosts] = useState([]);
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState("");
-  // const [isAuthenticated,setIsAuthenticated]=useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [auth, setAuth] = useState({ authenticated: false, user: null });
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [replyingToId, setReplyingToId] = useState(null);
+  const [replyText, setReplyText] = useState("");
   const navigate = useNavigate();
+// Fetch auth status
+useEffect(() => {
+  const fetchAuth = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'}/user/getUser`, { withCredentials: true });
+      setAuth({ authenticated: !!res.data?.authenticated, user: res.data?.user || null });
+    } catch {
+      setAuth({ authenticated: false, user: null });
+    }
+  };
+  fetchAuth();
+}, []);
+
+// Check bookmark status
+useEffect(() => {
+  const checkBookmark = async () => {
+    if (auth.authenticated && post?._id) {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'}/bookmarks/check/${post._id}`,
+          { withCredentials: true }
+        );
+        setIsBookmarked(res.data.isBookmarked);
+      } catch (err) {
+        // Not bookmarked or not logged in
+        setIsBookmarked(false);
+      }
+    }
+  };
+  checkBookmark();
+}, [auth.authenticated, post?._id]);
+
+// Toggle bookmark
+const handleBookmark = async () => {
+  if (!auth.authenticated) {
+    toast.error("Please login to bookmark posts");
+    setTimeout(() => navigate("/AuthForm"), 1500);
+    return;
+  }
+
+  try {
+    if (isBookmarked) {
+      await axios.delete(
+        `${import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'}/bookmarks/${post._id}`,
+        { withCredentials: true }
+      );
+      setIsBookmarked(false);
+      toast.success("Bookmark removed");
+    } else {
+      await axios.post(
+        `${import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'}/bookmarks/${post._id}`,
+        {},
+        { withCredentials: true }
+      );
+      setIsBookmarked(true);
+      toast.success("Post bookmarked");
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to update bookmark");
+  }
+};
+
 const handleSubmit = async (e) => {
   e.preventDefault();
+  if (!auth.authenticated) {
+    toast.error("Please login to post a comment.");
+    setTimeout(() => navigate("/AuthForm"), 1500);
+    return;
+  }
 
   try {
     const { data: newComment } = await axios.post(
       `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
-      { text: comment },
+      { text: comment, parentCommentId: replyingToId || null },
       { withCredentials: true }
     );
 
-    setComments((prev) => [newComment, ...prev]);
+    // Refresh comments
+    const { data: updatedComments } = await axios.get(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
+      { withCredentials: true }
+    );
+    setComments(updatedComments);
     setComment("");
+    setReplyingToId(null);
+    toast.success("Comment posted successfully");
   } catch (error) {
     console.error("Error posting comment:", error);
-
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       toast.error("Please login to post a comment.");
-
-      // ⏳ Give toast a moment to appear before navigating
       setTimeout(() => navigate("/AuthForm"), 1500);
     } else {
-      toast.error("Failed to post comment. Please try again later.");
+      toast.error(error.response?.data?.message || "Failed to post comment. Please try again later.");
     }
+  }
+};
+
+// Handle reply
+const handleReply = async (parentId) => {
+  if (!auth.authenticated) {
+    toast.error("Please login to reply");
+    setTimeout(() => navigate("/AuthForm"), 1500);
+    return;
+  }
+
+  if (!replyText.trim()) {
+    toast.error("Reply cannot be empty");
+    return;
+  }
+
+  try {
+    await axios.post(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
+      { text: replyText, parentCommentId: parentId },
+      { withCredentials: true }
+    );
+
+    const { data: updatedComments } = await axios.get(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
+      { withCredentials: true }
+    );
+    setComments(updatedComments);
+    setReplyText("");
+    setReplyingToId(null);
+    toast.success("Reply posted successfully");
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to post reply");
+  }
+};
+
+// Handle edit comment
+const handleEditComment = async (commentId, newText) => {
+  try {
+    await axios.patch(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${commentId}`,
+      { text: newText },
+      { withCredentials: true }
+    );
+
+    const { data: updatedComments } = await axios.get(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
+      { withCredentials: true }
+    );
+    setComments(updatedComments);
+    setEditingCommentId(null);
+    toast.success("Comment updated successfully");
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to update comment");
+  }
+};
+
+// Handle delete comment
+const handleDeleteComment = async (commentId) => {
+  if (!window.confirm("Are you sure you want to delete this comment?")) return;
+
+  try {
+    await axios.delete(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${commentId}`,
+      { withCredentials: true }
+    );
+
+    const { data: updatedComments } = await axios.get(
+      `${import.meta.env.VITE_SERVERAPI}/comments/${post._id}`,
+      { withCredentials: true }
+    );
+    setComments(updatedComments);
+    toast.success("Comment deleted successfully");
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to delete comment");
   }
 };
 
@@ -77,18 +311,30 @@ const handleSubmit = async (e) => {
     // Fallback to fetching data if no prop is passed
     const fetchPost = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_SERVERAPI}/post/getPosts`)
-        const posts = res.data.posts;
-
-
-        const found = posts.find((item) => item._id === id);
-        console.log("Found post:", found);
+        // Use the new API endpoint that includes editor name
+        const res = await axios.get(`${import.meta.env.VITE_SERVERAPI}/post/getPost/${id}`);
+        const found = res.data.post;
         setPost(found || null);
 
-        const related = posts.filter(
+        // Fetch related posts
+        const allPostsRes = await axios.get(`${import.meta.env.VITE_SERVERAPI}/post/getPosts`);
+        const allPosts = allPostsRes.data.posts;
+        const related = allPosts.filter(
           (item) => item._id !== id && item.category?.slug === found?.category?.slug
         );
         setRelatedPosts(related.slice(0, 5));
+
+        // Fetch most read posts
+        if (found?.category?.slug) {
+          try {
+            const mostReadRes = await axios.get(
+              `${import.meta.env.VITE_SERVERAPI}/post/most-read/${found.category.slug}?limit=5`
+            );
+            setRelatedPosts(prev => [...prev, ...mostReadRes.data.posts.slice(0, 5)]);
+          } catch (err) {
+            console.error("Error fetching most read:", err);
+          }
+        }
       } catch (error) {
         console.error("Error fetching post details", error);
       }
@@ -107,6 +353,12 @@ const handleSubmit = async (e) => {
     viewedCategories[postCategoryId] = (viewedCategories[postCategoryId] || 0) + 1;
 
     localStorage.setItem("viewedCategories", JSON.stringify(viewedCategories));
+  }, [post]);
+
+  useEffect(() => {
+    if (post?._id) {
+      try { recordPostView(post); } catch(_) {}
+    }
   }, [post]);
 
   const fetchRelatedPosts = async (currentPost) => {
@@ -140,13 +392,34 @@ const handleSubmit = async (e) => {
         <div className="lg:w-7/12 w-full">
           <h1 className="text-3xl lg:text-[34px] font-bold mb-7">{post.title}</h1>
 
-          <div className="flex mb-4 gap-2 items-center text-sm text-[#3f3d3d]">
-            <BsClock />
-            <p className="m-0">{new Date(post.createdAt).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}</p>
+          <div className="flex mb-4 gap-4 items-center text-sm text-[#3f3d3d]">
+            <div className="flex gap-2 items-center">
+              <BsClock />
+              <p className="m-0">{new Date(post.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}</p>
+            </div>
+            {post.assignedEditor && (
+              <div className="flex gap-2 items-center">
+                <FaUserCircle />
+                <p className="m-0">Editor: {post.assignedEditor.username || "Unknown"}</p>
+              </div>
+            )}
+            {auth.authenticated && (
+              <button
+                onClick={handleBookmark}
+                className="ml-auto flex items-center gap-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                title={isBookmarked ? "Remove bookmark" : "Bookmark this post"}
+              >
+                {isBookmarked ? (
+                  <><FaBookmark className="text-[#F05922]" /> <span className="text-xs">Bookmarked</span></>
+                ) : (
+                  <><FaRegBookmark /> <span className="text-xs">Bookmark</span></>
+                )}
+              </button>
+            )}
           </div>
 
           <img
@@ -179,20 +452,52 @@ const handleSubmit = async (e) => {
   </p>
 
   {/* 📝 Comment Form */}
+  {replyingToId && (
+    <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+      <p className="text-sm text-gray-600 mb-2">Replying to comment...</p>
+      <textarea
+        rows="2"
+        placeholder="Write your reply..."
+        value={replyText}
+        onChange={(e) => setReplyText(e.target.value)}
+        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-gray-700"
+      />
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => {
+            setReplyingToId(null);
+            setReplyText("");
+          }}
+          className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => handleReply(replyingToId)}
+          className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition"
+        >
+          Post Reply
+        </button>
+      </div>
+    </div>
+  )}
+
   <form onSubmit={handleSubmit} className="mb-8">
     <textarea
       required
       rows="3"
-      placeholder="Write your comment..."
+      placeholder={auth.authenticated ? "Write your comment..." : "Please login to comment"}
       value={comment}
       onChange={(e) => setComment(e.target.value)}
-      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none text-gray-700"
+      disabled={!auth.authenticated}
+      className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none text-gray-700 disabled:bg-gray-100"
     />
 
     <div className="flex justify-end mt-3">
       <button
-        className="bg-[#F05922] text-white py-2 px-5 rounded-lg hover:bg-[#d94f1f] transition font-semibold shadow-md"
+        className="bg-[#F05922] text-white py-2 px-5 rounded-lg hover:bg-[#d94f1f] transition font-semibold shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
         type="submit"
+        disabled={!auth.authenticated}
       >
         Post Comment
       </button>
@@ -201,37 +506,141 @@ const handleSubmit = async (e) => {
 
   {/* 💬 Show existing comments */}
   <div className="space-y-5">
-    {comments.map((c) => (
-      <motion.div
-        key={c._id}
-        className="border border-gray-200 bg-gray-50 rounded-xl p-4 hover:shadow-sm transition"
-        whileHover={{ scale: 1.01 }}
-      >
-        <div className="flex items-center justify-between mb-1">
-          <div className='flex mb-1 gap-2 items-center'>
-            <FaUserCircle className='text-3xl text-gray-500' />
+    {comments.length === 0 ? (
+      <p className="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>
+    ) : (
+      comments.map((c) => {
+        const commentUserId = typeof c.userId === 'object' ? c.userId?._id : c.userId;
+        const currentUserId = auth.user?._id || auth.user?.id;
+        const isOwner = auth.user && commentUserId && currentUserId && String(commentUserId) === String(currentUserId);
+        const isEditing = editingCommentId === c._id;
 
-          <p className="font-semibold text-gray-800">
-            {c.userId?.username || "Anonymous"}
-          </p>
-          </div>
-          <span className="text-xs text-gray-500">
-            {new Date(c.createdAt).toLocaleString("en-US", {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-})}
+        return (
+          <motion.div
+            key={c._id}
+            className="border border-gray-200 bg-gray-50 rounded-xl p-4 hover:shadow-sm transition"
+            whileHover={{ scale: 1.01 }}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className='flex gap-2 items-center'>
+                <FaUserCircle className='text-3xl text-gray-500' />
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {c.userId?.username || "Anonymous"}
+                  </p>
+                  {c.isEdited && (
+                    <span className="text-xs text-gray-400">(edited)</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  {new Date(c.createdAt).toLocaleString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </span>
+                {isOwner && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setEditingCommentId(isEditing ? null : c._id)}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      title="Edit comment"
+                    >
+                      <FaEdit className="text-sm" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteComment(c._id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      title="Delete comment"
+                    >
+                      <FaTrash className="text-sm" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
-          </span>
-        </div>
-        <p className="text-gray-700 leading-relaxed ">{c.text}</p>
-      </motion.div>
-    ))}
+            {isEditing ? (
+              <CommentEditForm
+                comment={c}
+                onSave={(newText) => {
+                  handleEditComment(c._id, newText);
+                }}
+                onCancel={() => setEditingCommentId(null)}
+              />
+            ) : (
+              <>
+                <p className="text-gray-700 leading-relaxed mb-2">{c.text}</p>
+                {auth.authenticated && !isOwner && (
+                  <button
+                    onClick={() => setReplyingToId(c._id)}
+                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    <FaReply /> Reply
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Replies */}
+            {c.replies && c.replies.length > 0 && (
+              <div className="mt-3 ml-6 space-y-3 border-l-2 border-gray-300 pl-4">
+                {c.replies.map((reply) => {
+                  const replyUserId = typeof reply.userId === 'object' ? reply.userId?._id : reply.userId;
+                  const currentUserId = auth.user?._id || auth.user?.id;
+                  const isReplyOwner = auth.user && replyUserId && currentUserId && String(replyUserId) === String(currentUserId);
+                  return (
+                    <div key={reply._id} className="bg-white rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex gap-2 items-center">
+                          <FaUserCircle className="text-xl text-gray-400" />
+                          <p className="font-semibold text-sm text-gray-700">
+                            {reply.userId?.username || "Anonymous"}
+                          </p>
+                          {reply.isEdited && (
+                            <span className="text-xs text-gray-400">(edited)</span>
+                          )}
+                        </div>
+                        {isReplyOwner && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleDeleteComment(reply._id)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                              title="Delete reply"
+                            >
+                              <FaTrash className="text-xs" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">{reply.text}</p>
+                      <span className="text-xs text-gray-400">
+                        {new Date(reply.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        );
+      })
+    )}
   </div>
 </motion.div>
+
+          {/* Article Recommendations Section */}
+          {post?._id && (
+            <ArticleRecommendations 
+              articleId={post._id} 
+              title="You might also like"
+            />
+          )}
 </div>
 
         {/* Sidebar Related News */}
@@ -279,22 +688,7 @@ const handleSubmit = async (e) => {
               <span className="w-3 h-3 rounded-full bg-secondary inline-block"></span>
               <span className="uppercase text-secondary font-bold tracking-wide text-lg">Most Read</span>
             </div>
-            <div>
-              {relatedPosts.slice(0, 5).map((item, i) => (
-                <div key={i} className="flex gap-4 items-center py-3 border-b last:border-b-0">
-                  <img
-                    src={item.image.startsWith("http") ? item.image : `http://localhost:5000${item.image}`}
-                    className="w-[70px] h-[55px] object-cover rounded"
-                    alt={item.title}
-                  />
-                  <Link to={`/${(item.category?.slug || '').toLowerCase()}/${item._id}/${item.slug}`}>
-                    <p className="font-semibold text-[15px] hover:text-[#2170b8] transition-colors">
-                      {item.title}
-                    </p>
-                  </Link>
-                </div>
-              ))}
-            </div>
+            <MostReadSection categorySlug={post?.category?.slug} />
 
             {/* Newsletter Section */}
             <div className="bg-gradient-to-br from-orange-400 to-orange-500 rounded-lg p-7 mt-8 text-white shadow-lg">

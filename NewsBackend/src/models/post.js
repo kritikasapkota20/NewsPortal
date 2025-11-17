@@ -46,6 +46,11 @@ const postSchema=new mongoose.Schema({
     default: 'draft',
   },
   viewCount: { type: Number, default: 0 },
+  tags: {
+    type: [String],
+    default: [],
+    trim: true,
+  },
  createdAt:{
     type:Date,
     default:Date.now,

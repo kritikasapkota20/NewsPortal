@@ -4,6 +4,8 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import UseDate from '../Components/UseDate';
 import { BsClock } from 'react-icons/bs';
+import ArticleRecommendations from '../Components/ArticleRecommendations';
+import { recordPostView } from '../utils/viewTracker';
 
 const EntertainmentDetails = ({ data }) => {
   const { id } = useParams();
@@ -69,6 +71,12 @@ const EntertainmentDetails = ({ data }) => {
 
     fetchPost();
   }, [id, data]);
+
+  useEffect(() => {
+    if (post?._id) {
+      try { recordPostView(post); } catch(_) {}
+    }
+  }, [post]);
 
   const fetchRelatedPosts = async (currentPost) => {
     try {
@@ -152,8 +160,19 @@ const EntertainmentDetails = ({ data }) => {
           </div>
         </form>
       </motion.div>
+       {/* Article Recommendations Section */}
+       {post?._id && (
+          <div className="">
+            <ArticleRecommendations 
+              articleId={post._id} 
+              title="You might also like"
+            />
+          </div>
+        )}
+
         </div>
 
+       
         {/* Sidebar Related News */}
         <div   className="lg:w-5/12 w-full max-h-fit py-2 px-4">
                 <motion.div className='bg-white shadow-2xl py-2 px-4 border-t-2 border-[#f3e7e7]'

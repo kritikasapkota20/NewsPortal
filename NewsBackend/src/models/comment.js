@@ -5,7 +5,7 @@ const commentSchema = new mongoose.Schema(
   {
     articleId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Article",
+      ref: "Post",
       required: true,
     },
     userId: {
@@ -17,6 +17,15 @@ const commentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    parentCommentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+      default: null,
+    },
+    isEdited: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true } // adds createdAt and updatedAt

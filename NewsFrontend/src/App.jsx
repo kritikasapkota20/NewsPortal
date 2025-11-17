@@ -27,6 +27,7 @@ import UnicodeConverter from './Pages/Unicode-Converter'
 import Health from './Pages/Health'
 import DynamicDetails from './Components/DynamicDetails'
 import Verify from './Pages/Verify'
+import UserProfile from './Pages/UserProfile'
 
 const App = () => {
   return (
@@ -36,6 +37,7 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/AuthForm" element={<AuthForm />} />
           <Route path="/verify/:token" element={<Verify />} />
+          <Route path="/profile" element={<><UserProfile /></>} />
           {/* <Route path="/economy/" element={<><Navbar /><Samachar /><Footer /></>} />
           <Route path="/SamacharDetails/:title" element={<><Navbar /><Samachardetails /><Footer /></>} />
           <Route path="/Artha/" element={<><Navbar /><Artha /><Footer /></>} />

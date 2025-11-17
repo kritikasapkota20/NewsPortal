@@ -44,7 +44,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: "Dashboard", icon: <MdDashboardCustomize />, path: "/Admin/dashboard" },
-    { name: "Create Post", icon: <IoIosCreate />, path: "/Admin/create-post" },
+    // { name: "Create Post", icon: <IoIosCreate />, path: "/Admin/create-post" },
     { name: "Manage Post", icon: <MdManageSearch />, path: "/Admin/manage-posts" },
     { name: "Review Posts", icon: <FaClipboardCheck />, path: "/Admin/review-posts" },
     { name: "Users", icon: <ImUsers />, path: "/Admin/users" },

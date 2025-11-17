@@ -1,11 +1,105 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiLock, FiMail, FiUser, FiKey, FiLogOut } from 'react-icons/fi';
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
+const PasswordChangeForm = ({ onClose }) => {
+    const [passwordData, setPasswordData] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+    });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            toast.error('New passwords do not match');
+            return;
+        }
+
+        try {
+            const res = await axios.patch(
+                "http://localhost:5000/api/admin/change-password",
+                passwordData,
+                { withCredentials: true }
+            );
+            toast.success(res.data.message || 'Password changed successfully');
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            onClose();
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to change password');
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4 animate-fade-in">
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Current Password
+                </label>
+                <input
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+                    required
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                </label>
+                <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+                    required
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm New Password
+                </label>
+                <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+                    required
+                />
+            </div>
+            <div className="flex gap-2">
+                <button type="submit" className="flex-1 bg-[#0065B3] text-white py-3 rounded-lg hover:bg-[#F05922] transition-colors font-medium">
+                    Update Password
+                </button>
+                <button type="button" onClick={onClose} className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    );
+};
+
 const Profile = () => {
     const navigate = useNavigate();
+    const [admin, setAdmin] = useState(null);
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
+
+    useEffect(() => {
+        fetchAdminProfile();
+    }, []);
+
+    const fetchAdminProfile = async () => {
+        try {
+            const res = await axios.get("http://localhost:5000/api/admin/profile", { withCredentials: true });
+            setAdmin(res.data.admin);
+        } catch (error) {
+            toast.error('Failed to fetch admin profile');
+        }
+    };
+
     const logoutAdmin = async () => {
         try {
           const response = await axios.post("http://localhost:5000/api/admin/logout", {}, { withCredentials: true });
@@ -15,7 +109,6 @@ const Profile = () => {
           toast.error(error.response?.data?.message || "Something went wrong,Please try again");
         }
       };
-    const [showPasswordForm, setShowPasswordForm] = useState(false);
 
     const togglePasswordForm = () => setShowPasswordForm(!showPasswordForm);
 
@@ -29,12 +122,12 @@ const Profile = () => {
                         <div className="  bg-white rounded-full  shadow-sm p-2 items-center mt-2 ">
                             <FiUser className="text-[#0065B3] w-6 h-6 " />
                         </div>
-                        <h1 className="mt-4 text-3xl font-bold text-white mb-2">Kritika Sapkota</h1>
+                        <h1 className="mt-4 text-3xl font-bold text-white mb-2">{admin?.username || 'Admin'}</h1>
 
                     </div>
                     <p className="text-indigo-200 mt-2 flex items-center justify-center gap-2">
                         <FiMail className="inline" />
-                        kritikasapkota.30@gmail.com
+                        {admin?.email || ''}
                     </p>
                     <span className="inline-block mt-3 px-4 py-1 bg-[#268fdf] text-white rounded-full text-sm font-medium">
                         Administrator
@@ -61,38 +154,7 @@ const Profile = () => {
                         </button>
 
                         {showPasswordForm && (
-                            <div className="mt-4 space-y-4 animate-fade-in">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Current Password
-                                    </label>
-                                    <input
-                                        type="password"
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        New Password
-                                    </label>
-                                    <input
-                                        type="password"
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Confirm New Password
-                                    </label>
-                                    <input
-                                        type="password"
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
-                                    />
-                                </div>
-                                <button className="w-full bg-[#0065B3] text-white py-3 rounded-lg hover:bg-[#F05922] transition-colors font-medium">
-                                    Update Password
-                                </button>
-                            </div>
+                            <PasswordChangeForm onClose={() => setShowPasswordForm(false)} />
                         )}
                     </div>
 

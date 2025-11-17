@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import UseDate from './UseDate';
 import { BsClock } from 'react-icons/bs';
 import axios from 'axios';
+import ArticleRecommendations from './ArticleRecommendations';
+import { recordPostView } from '../utils/viewTracker';
 
 const HealthDetails = ({ data }) => {
     const { id } = useParams();
@@ -38,6 +40,12 @@ const HealthDetails = ({ data }) => {
         };
         fetchNews();
     }, [id, data]);
+
+    useEffect(() => {
+        if (news?._id) {
+            try { recordPostView(news); } catch(_) {}
+        }
+    }, [news]);
 
     if (loading) {
         return <div>Loading...</div>;
@@ -120,6 +128,14 @@ const HealthDetails = ({ data }) => {
                         </div></form>
                 </motion.div>
             </div>
+            
+            {/* Article Recommendations Section */}
+            {news?._id && (
+                <ArticleRecommendations 
+                    articleId={news._id} 
+                    title="You might also like"
+                />
+            )}
         </div>
     );
 };

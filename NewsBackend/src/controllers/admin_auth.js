@@ -16,6 +16,14 @@ export const registerAdmin = async (req, res) => {
             });
         }
 
+        // Check if an admin already exists (only one admin allowed)
+        const existingAdmin = await Admin.findOne({ isVerified: true });
+        if (existingAdmin) {
+            return res.status(400).json({ 
+                message: "An admin account already exists. Only one admin is allowed." 
+            });
+        }
+
         // Check if user already exists (most efficient - database call first)
         const existingUser = await Admin.findOne({ email });
         
@@ -228,5 +236,48 @@ export const updateAdminProfile = async (req, res) => {
     }
 };
 
-export default { registerAdmin, loginAdmin, logoutAdmin, getAdminProfile, updateAdminProfile };
+// Change password
+export const changeAdminPassword = async (req, res) => {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    
+    try {
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: "All fields are required!" });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "New passwords do not match!" });
+        }
+
+        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+[\]{};':"\\|,.<>/?-]).{8,}$/;
+        if (!strongPasswordRegex.test(newPassword)) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+            });
+        }
+
+        const admin = await Admin.findById(req.admin._id);
+        if (!admin) {
+            return res.status(404).json({ message: "Admin not found" });
+        }
+
+        const validPassword = await bcrypt.compare(currentPassword, admin.password);
+        if (!validPassword) {
+            return res.status(400).json({ message: "Current password is incorrect!" });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        admin.password = hashedPassword;
+        await admin.save();
+
+        res.status(200).json({ message: "Password changed successfully!" });
+    } catch (error) {
+        console.error("Error changing password:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export default { registerAdmin, loginAdmin, logoutAdmin, getAdminProfile, updateAdminProfile, changeAdminPassword };
 

@@ -1,5 +1,5 @@
 import express from "express";
-import { loginEditor } from "../controllers/editor_auth.js";
+import { loginEditor, changeEditorPassword, logoutEditor } from "../controllers/editor_auth.js";
 import { verifyToken } from "../middlewares/user_auth.js";
 import { getPosts, editPost, deletePost, createPost } from "../controllers/post.js";
 import upload from "../helper/filehelper.js";
@@ -12,6 +12,8 @@ const router = express.Router();
 
 // Editor login
 router.post("/login", loginEditor);
+router.post("/logout", verifyToken, logoutEditor);
+router.patch("/change-password", verifyToken, changeEditorPassword);
 
 // Current user info (role check convenience)
 router.get("/me", verifyToken, async (req, res) => {

@@ -59,8 +59,8 @@ fetchCategories();
             { name: "Total Posts", count: countPosts, icon: <FaNewspaper /> },
             { name: "Total Categories", count:countCategories, icon: <FaComments /> },
 
-            { name: "All Users", count: 56, icon: <FaUser /> },
-            { name: "Total Comments", count: 234, icon: <FaComments /> },
+            { name: "All Users", count: 5, icon: <FaUser /> },
+            { name: "Total Comments", count: 3, icon: <FaComments /> },
 
           ].map((stat, index) => (
             <div key={index} className="bg-white p-4 rounded-lg shadow flex flex-col justify-center items-center h-52">

@@ -9,6 +9,7 @@ import postRoutes from "./routes/post_routes.js";
 import categoryRoutes from "./routes/category_routes.js";
 import editorRoutes from "./routes/editorroutes.js";
 import commentRoutes from "./routes/comment_routes.js";
+import bookmarkRoutes from "./routes/bookmark_routes.js";
 import path from 'path';
 import passport from "./configs/passport.js";
 import { fileURLToPath } from 'url';
@@ -52,6 +53,7 @@ app.use("/api/user",userRoutes);
 app.use("/api/post",postRoutes);
 app.use("/api/categories",categoryRoutes);
 app.use("/api/comments",commentRoutes);
+app.use("/api/bookmarks", bookmarkRoutes);
 app.use("/api/editor", editorRoutes);
 
 
