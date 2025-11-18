@@ -5,6 +5,11 @@ import Category from "../models/categorymodel.js";
 import mongoose from "mongoose";
 
 
+const normalizeSubCategorySlug = (value) => {
+  if (!value) return null;
+  return slugify(value, { lower: true, strict: true });
+};
+
 const createPost = async (req, res) => {
   try {
     const { title, category, subCategory, content, isHeadNews,isMainNews, status, tags } = req.body;
@@ -45,6 +50,7 @@ const createPost = async (req, res) => {
       slug,
       category,
       subCategory,
+      subCategorySlug: normalizeSubCategorySlug(subCategory),
       content,
       image,
       tags: tagsArray,
@@ -270,7 +276,12 @@ const editPost = async (req, res) => {
     if (content) existingPost.content = content;
     // Allow changing category
     existingPost.category = categoryData._id;
-    if (subCategory !== undefined) existingPost.subCategory = subCategory;
+    if (subCategory !== undefined) {
+      existingPost.subCategory = subCategory;
+      existingPost.subCategorySlug = normalizeSubCategorySlug(subCategory);
+    } else if (existingPost.subCategory && !existingPost.subCategorySlug) {
+      existingPost.subCategorySlug = normalizeSubCategorySlug(existingPost.subCategory);
+    }
     if (image) existingPost.image = image;
     
     // Handle boolean fields - they can be false, so we need to check if they exist in req.body
@@ -357,6 +368,72 @@ const getPostsByCategory = async (req, res) => {
       category,
       total,
       totalPages: Math.ceil(total / limit),
+      page,
+      limit,
+      posts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+const buildSubCategoryRegex = (slug) => {
+  if (!slug) return null;
+  const decoded = slug.replace(/-/g, ' ').trim();
+  if (!decoded) return null;
+  const escaped = decoded.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = escaped.replace(/\\\s+/g, '[\\s\\-/]+');
+  return new RegExp(`^${pattern}$`, 'i');
+};
+
+const getPostsBySubCategory = async (req, res) => {
+  try {
+    const { categorySlug, subSlug } = req.params;
+    if (!categorySlug || !subSlug) {
+      return res.status(400).json({ success: false, message: 'Category and subcategory are required' });
+    }
+
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+
+    const category = await Category.findOne({ slug: categorySlug }).select('_id name slug');
+    if (!category) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+
+    const filter = {
+      category: category._id,
+      status: { $in: ['pending_review', 'published'] },
+    };
+
+    const conditions = [{ subCategorySlug: subSlug }];
+    const subRegex = buildSubCategoryRegex(subSlug);
+    if (subRegex) {
+      conditions.push({ subCategory: { $regex: subRegex } });
+    }
+    filter.$or = conditions;
+
+    const total = await Post.countDocuments(filter);
+    const posts = await Post.find(filter)
+      .populate('category', 'name slug')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select('title slug subCategory subCategorySlug category content image createdAt status');
+
+    const subCategoryName = posts[0]?.subCategory || subSlug.replace(/-/g, ' ');
+
+    res.status(200).json({
+      success: true,
+      category,
+      subCategorySlug: subSlug,
+      subCategoryName,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
       page,
       limit,
       posts,
@@ -809,7 +886,7 @@ const getTrendingArticles = async (req, res) => {
 };
 
 export {createPost,getPosts,deletePost,editPost, 
-  getHeadNews,getMainNews,getPostsByCategory,getPost,
+  getHeadNews,getMainNews,getPostsByCategory,getPost,getPostsBySubCategory,
   incrementPostView, getRecommendedPosts, getPersonalizedRecommendations,
   getPostsPaginated, getGroupedPostsForAdmin, searchPosts, getMostReadPosts,
   getContentBasedRecommendations, getTrendingArticles

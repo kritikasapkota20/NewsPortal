@@ -7,6 +7,8 @@ import { MdManageSearch } from 'react-icons/md'
 
 const API = import.meta.env.VITE_SERVERAPI || 'http://localhost:5000/api'
 
+const ITEMS_PER_PAGE = 5
+
 const ManagePosts = () => {
   const [posts, setPosts] = useState([])
   const [query, setQuery] = useState('')
@@ -15,6 +17,7 @@ const ManagePosts = () => {
   const [error, setError] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
+  const [pageByCategory, setPageByCategory] = useState({})
 
   useEffect(() => {
     const fetchAssigned = async () => {
@@ -32,6 +35,27 @@ const ManagePosts = () => {
     }
     fetchAssigned()
   }, [])
+
+  useEffect(() => {
+    setPageByCategory({})
+  }, [posts, query, status])
+
+  const filteredPosts = posts
+    .filter((p) => p.title?.toLowerCase().includes(query.toLowerCase()))
+    .filter((p) => (status ? p.status === status : true))
+
+  const grouped = filteredPosts.reduce((acc, p) => {
+    const key = p.category?.name || 'Uncategorized'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(p)
+    return acc
+  }, {})
+
+  const groupedEntries = Object.entries(grouped)
+
+  const handlePageChange = (cat, nextPage) => {
+    setPageByCategory((prev) => ({ ...prev, [cat]: nextPage }))
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -88,32 +112,31 @@ const ManagePosts = () => {
           {loading && <div className="p-4">Loading...</div>}
           {error && <div className="p-4 text-red-600">{error}</div>}
 
-          {Object.entries(
-            posts
-              .filter((p) => p.title?.toLowerCase().includes(query.toLowerCase()))
-              .filter((p) => (status ? p.status === status : true))
-              .reduce((acc, p) => {
-                const key = p.category?.name || 'Uncategorized'
-                if (!acc[key]) acc[key] = []
-                acc[key].push(p)
-                return acc
-              }, {})
-          ).map(([cat, items]) => (
-            <div key={cat} className="mb-8 bg-white rounded-xl shadow-md overflow-hidden min-w-fit">
-              <h2 className="text-xl font-bold p-4 bg-gray-600 text-white">{cat}</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-max divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-4 text-left font-semibold text-gray-600">Title</th>
-                      <th className="px-4 py-4 text-left font-semibold text-gray-600">Image</th>
-                      <th className="px-4 py-4 text-left font-semibold text-gray-600">Created Date</th>
-                      <th className="px-4 py-4 text-left font-semibold text-gray-600">Status</th>
-                      <th className="px-4 py-4 text-left font-semibold text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {items.map((p) => (
+          {groupedEntries.map(([cat, items]) => {
+            const totalPages = Math.max(1, Math.ceil(items.length / ITEMS_PER_PAGE))
+            const currentPage = Math.min(pageByCategory[cat] || 1, totalPages)
+            const start = (currentPage - 1) * ITEMS_PER_PAGE
+            const paginatedItems = items.slice(start, start + ITEMS_PER_PAGE)
+            const windowSize = 5
+            const startPage = Math.max(1, currentPage - Math.floor(windowSize / 2))
+            const endPage = Math.min(totalPages, startPage + windowSize - 1)
+
+            return (
+              <div key={cat} className="mb-8 bg-white rounded-xl shadow-md overflow-hidden min-w-fit">
+                <h2 className="text-xl font-bold p-4 bg-gray-600 text-white">{cat}</h2>
+                <div className="overflow-x-auto">
+                  <table className="min-w-max divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-4 text-left font-semibold text-gray-600">Title</th>
+                        <th className="px-4 py-4 text-left font-semibold text-gray-600">Image</th>
+                        <th className="px-4 py-4 text-left font-semibold text-gray-600">Created Date</th>
+                        <th className="px-4 py-4 text-left font-semibold text-gray-600">Status</th>
+                        <th className="px-4 py-4 text-left font-semibold text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {paginatedItems.map((p) => (
                       <tr key={p._id} className="hover:bg-gray-50 transition duration-200">
                         <td className="px-4 py-4 text-gray-900 w-[300px]">{p.title}</td>
                         <td className="px-4 py-4">
@@ -185,12 +208,44 @@ const ManagePosts = () => {
                   </div>
                         </td>
                       </tr>
-                ))}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {items.length > ITEMS_PER_PAGE && (
+                  <div className="flex gap-3 items-center p-4 flex-wrap">
+                    {[...Array(Math.max(0, endPage - startPage + 1))].map((_, idx) => {
+                      const pageNum = startPage + idx
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => handlePageChange(cat, pageNum)}
+                          className={`px-4 py-2 rounded-full ${
+                            pageNum === currentPage
+                              ? 'bg-secondary text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    })}
+                    <button
+                      onClick={() => handlePageChange(cat, Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage >= totalPages}
+                      className={`px-4 py-2 rounded-full ${
+                        currentPage >= totalPages
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-primary text-white hover:bg-opacity-90'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {!loading && !error && posts.length === 0 && (
             <div className="text-slate-500">No posts assigned yet.</div>

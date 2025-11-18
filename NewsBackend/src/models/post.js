@@ -21,6 +21,10 @@ const postSchema=new mongoose.Schema({
   required: false,
   trim: true,
 },
+ subCategorySlug: {
+  type: String,
+  trim: true,
+ },
 
  
    isHeadNews: { type: Boolean, default: false },

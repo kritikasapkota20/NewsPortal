@@ -220,7 +220,7 @@ const Navbar = () => {
     <Link
       key={category._id || category.id || category.name}
       to={path}
-      className="nav-link-hover"
+      className="nav-link-hover "
     >
     
       {category.name}
@@ -230,11 +230,11 @@ const Navbar = () => {
 
                 </div>
 
-                <div className='flex items-center gap-3 ml-8'>
-                  <Link to="unicode-converter" className='nav-button bg-gray-50 text-primary hover:bg-[#0066B] hover:text-whit'>
+                <div className='flex items-center gap-10 ml-8'>
+                  {/* <Link to="unicode-converter" className='nav-button bg-gray-50 text-primary hover:bg-[#0066B] hover:text-whit'>
                     <FaKeyboard className="w-4 h-4" />
                     <span>युनिकोड</span>
-                  </Link>
+                  </Link> */}
                   {renderAuthButton()}
 
                   {/* <button className='nav-button bg-gray-50  text-primary'>
@@ -366,7 +366,7 @@ const Navbar = () => {
       <style>{`
         .nav-link-hover {
           position: relative;
-          padding: 0.35rem;
+          padding:0 0.8rem ;
           transition: all 0.3s ease;
           white-space: nowrap;
         }

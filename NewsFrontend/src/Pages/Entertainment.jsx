@@ -3,6 +3,14 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { Filmandbollywood, Gossipandsong, Gallery } from "../Components/props/Entertainment";
 
+const slugifyText = (text = "") =>
+  text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 const Entertainment = () => {
   const [entertainmentPosts, setEntertainmentPosts] = useState([]);
   const [mainNews, setMainNews] = useState(null);
@@ -20,27 +28,20 @@ const Entertainment = () => {
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_SERVERAPI}/post/getPosts`)
-        // ("http://localhost:5000/api/post/getPosts");
+        const response = await axios.get(`${import.meta.env.VITE_SERVERAPI}/post/getPosts`);
         const posts = response.data.posts;
-        // console.log("Fetched posts:", posts);
 
-        // Filter posts that belong to the Entertainment category
         const entPosts = posts
           .filter((item) => item.category?.slug?.toLowerCase() === "entertainment")
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        // Find first post marked as isHeading (if any)
         const headingPost = entPosts.find((post) => post.isMainNews);
-        console.log("Entertainment posts:", headingPost);
 
         if (headingPost) {
           setHeadingNews(headingPost);
-          // Remove the heading post from general entertainment list
           const rest = entPosts.filter((post) => post._id !== headingPost._id);
           setEntertainmentPosts(rest);
         } else if (entPosts.length > 0) {
-          // No heading post found, use latest as main
           setMainNews(entPosts[0]);
           setEntertainmentPosts(entPosts.slice(1));
         } else {
@@ -141,22 +142,42 @@ const Entertainment = () => {
           const filteredNews = filterBySubcategory(subCat);
           if (filteredNews.length === 0) return null;
 
+          const categorySlug =
+            headingNews?.category?.slug?.toLowerCase() ||
+            mainNews?.category?.slug?.toLowerCase() ||
+            filteredNews[0]?.category?.slug?.toLowerCase() ||
+            "entertainment";
+          const subSlug = slugifyText(subCat);
+          const moreLink = `/category/${categorySlug}/sub/${subSlug}`;
+
           if (subCat === "Gallery") {
-            return <Gallery key={subCat} newsarray={filteredNews} heading={subCat} />;
+            return (
+              <Gallery
+                key={subCat}
+                newsarray={filteredNews}
+                heading={subCat}
+                moreLink={moreLink}
+              />
+            );
           } else if (subCat === "Filmy Entertainment" || subCat === "Bollywood/Hollywood") {
             return (
               <Filmandbollywood
                 key={subCat}
                 newsarray={filteredNews}
-                mainimg={
-                  `http://localhost:5000${filteredNews[0]?.image}`
-                }
+                mainimg={filteredNews[0]?.image}
+                mainTitle={filteredNews[0]?.title}
                 heading={subCat}
+                moreLink={moreLink}
               />
             );
           } else {
             return (
-              <Gossipandsong key={subCat} newsarray={filteredNews} heading={subCat} />
+              <Gossipandsong
+                key={subCat}
+                newsarray={filteredNews}
+                heading={subCat}
+                moreLink={moreLink}
+              />
             );
           }
         })}

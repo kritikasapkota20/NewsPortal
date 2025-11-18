@@ -47,6 +47,18 @@ const HealthDetails = ({ data }) => {
         }
     }, [news]);
 
+  useEffect(() => {
+    if (!news?._id) return;
+    const incrementViews = async () => {
+      try {
+        await axios.patch(`${import.meta.env.VITE_SERVERAPI}/post/incrementView/${news._id}`);
+      } catch (err) {
+        console.error('Failed to increment view count', err);
+      }
+    };
+    incrementViews();
+  }, [news?._id]);
+
     if (loading) {
         return <div>Loading...</div>;
     }

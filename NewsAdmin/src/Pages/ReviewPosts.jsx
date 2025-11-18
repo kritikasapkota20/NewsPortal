@@ -78,7 +78,7 @@ const ReviewPosts = () => {
                   <th className="px-4 py-4 text-left font-semibold text-gray-600">Title</th>
                   <th className="px-4 py-4 text-left font-semibold text-gray-600">Category</th>
                   <th className="px-4 py-4 text-left font-semibold text-gray-600">Editor</th>
-                  <th className="px-4 py-4 text-left font-semibold text-gray-600">Created Date</th>
+                  {/* <th className="px-4 py-4 text-left font-semibold text-gray-600">Created Date</th> */}
                   <th className="px-4 py-4 text-left font-semibold text-gray-600">Status</th>
                   <th className="px-4 py-4 text-left font-semibold text-gray-600">Actions</th>
                 </tr>
@@ -86,10 +86,10 @@ const ReviewPosts = () => {
               <tbody className="bg-white divide-y divide-gray-100">
                 {posts.map((post) => (
                   <tr key={post._id} className="hover:bg-gray-50 transition duration-200">
-                    <td className="px-4 py-4 text-gray-900 w-[300px]">{post.title}</td>
+                    <td className="px-4 py-4 text-gray-900 w-[250px]">{post.title}</td>
                     <td className="px-4 py-4 text-gray-600">{post.category?.name}</td>
                     <td className="px-4 py-4 text-gray-600">{post.assignedEditor?.username}</td>
-                    <td className="px-4 py-4 text-gray-500">{format(new Date(post.createdAt), "MMM d yyyy, h:mm a")}</td>
+                    {/* <td className="px-4 py-4 text-gray-500">{format(new Date(post.createdAt), "MMM d yyyy, h:mm a")}</td> */}
                     <td className="px-4 py-4">
                       <span className="px-2 py-1 rounded text-xs bg-orange-100 text-orange-700">
                         {post.status}

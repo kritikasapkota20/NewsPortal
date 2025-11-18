@@ -25,6 +25,8 @@ import EditPost from './Pages/Admin/EditPosts'
 import UnicodeConverter from './Pages/Unicode-Converter'
 // import Samachardetails from './Components/Samachardetails'
 import Health from './Pages/Health'
+import Sports from './Pages/Sports'
+import SubCategoryPosts from './Pages/SubCategoryPosts'
 import DynamicDetails from './Components/DynamicDetails'
 import Verify from './Pages/Verify'
 import UserProfile from './Pages/UserProfile'
@@ -54,9 +56,10 @@ const App = () => {
 <Route path="/category/health" element={<><Navbar /><Health /><Footer /></>} />
 {/* <Route path="/healthDetails/:id/:slug" element={<> <Navbar /> <HealthDetails /> <Footer /></> } /> */}
 
-<Route path="/category/sports" element={<><Navbar /><Footer /></>} /> 
+<Route path="/category/sports" element={<><Navbar /><Sports /><Footer /></>} /> 
 
 {/* Dynamic Generic Category Page */}
+<Route path="/category/:categorySlug/sub/:subSlug" element={<><Navbar /><SubCategoryPosts /><Footer /></>} />
 <Route path="/category/:slug" element={<><Navbar /><Post /><Footer /></>} />
 <Route path=":category/:id/:slug" element={<><Navbar /><DynamicDetails /><Footer /></>} />
           <Route path="/unicode-converter" element={<><Navbar /><UnicodeConverter /><Footer /></>} />

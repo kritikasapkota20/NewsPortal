@@ -78,6 +78,18 @@ const EntertainmentDetails = ({ data }) => {
     }
   }, [post]);
 
+  useEffect(() => {
+    if (!post?._id) return;
+    const incrementViews = async () => {
+      try {
+        await axios.patch(`${import.meta.env.VITE_SERVERAPI}/post/incrementView/${post._id}`);
+      } catch (err) {
+        console.error('Failed to increment view count', err);
+      }
+    };
+    incrementViews();
+  }, [post?._id]);
+
   const fetchRelatedPosts = async (currentPost) => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_SERVERAPI}/post/getPosts`);

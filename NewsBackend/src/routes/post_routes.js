@@ -1,5 +1,5 @@
 import express from "express";
-import {createPost,deletePost,getPosts,editPost,getHeadNews,getMainNews,getPostsByCategory,getPost,incrementPostView,getRecommendedPosts,getPersonalizedRecommendations, searchPosts, getMostReadPosts, getContentBasedRecommendations, getTrendingArticles} from "../controllers/post.js";
+import {createPost,deletePost,getPosts,editPost,getHeadNews,getMainNews,getPostsByCategory,getPost,getPostsBySubCategory,incrementPostView,getRecommendedPosts,getPersonalizedRecommendations, searchPosts, getMostReadPosts, getContentBasedRecommendations, getTrendingArticles} from "../controllers/post.js";
 import { getPostsPaginated, getGroupedPostsForAdmin } from "../controllers/post.js";
 
 import upload from "../helper/filehelper.js";
@@ -11,6 +11,7 @@ router.get("/getPostsPaginated", getPostsPaginated);
 router.get("/admin/groupedPosts", getGroupedPostsForAdmin);
 router.get("/getPost/:id",getPost);
 router.get("/getPostsByCategory/:categorySlug",getPostsByCategory);
+router.get("/getPostsBySubcategory/:categorySlug/:subSlug", getPostsBySubCategory);
 router.delete("/deletePost/:category/:id",deletePost);
 router.get("/headNews", getHeadNews);
 router.get("/mainNews", getMainNews);
